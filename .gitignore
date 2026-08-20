@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env*.local
+dist/
+.next/
+*.log
+
+# Local SQLite dev database (see .env.example — DATABASE_URL="file:./dev.db")
+prisma/*.db
+prisma/*.db-journal
+
+# Runtime uploads are excluded, but seed data ships its own demo images
+# (see prisma/seed.js) so those stay tracked.
+public/uploads/*
+!public/uploads/.gitkeep
+!public/uploads/demo-*

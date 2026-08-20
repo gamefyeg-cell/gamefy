@@ -1,0 +1,615 @@
+// ============================================================================
+// Gamefy — Gaming Marketplace Platform
+// Prisma schema implementing the data model from the platform plan (§3).
+//
+// Principle: the storefront renders HomepageBlock / Category / Collection /
+// Product records directly — nothing about taxonomy, layout, or catalog is
+// hardcoded in application code. Everything below is admin-editable data.
+//
+// ⚠️ SQLite compatibility note:
+// This schema targets SQLite for zero-setup local dev (DATABASE_URL="file:./dev.db").
+// SQLite's Prisma connector does not support native `enum`, `Json`, or
+// `@db.Decimal` types — only Postgres/MySQL do. So below:
+//   - enums are modeled as `String` columns, validated by the TS union types
+//     in src/lib/enums.ts at the application layer.
+//   - Json fields are modeled as `String` columns holding JSON text,
+//     read/written via the helpers in src/lib/json-fields.ts.
+//   - money fields use plain `Float` instead of `@db.Decimal(12,2)`.
+// Every such field is annotated "// PG:" with its intended Postgres type.
+// Switching to production Postgres (Neon/Supabase) means: change the
+// datasource provider to "postgresql", restore the annotated types below,
+// and run a fresh migration — the model/relation shape does not change.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Region / Currency
+// ----------------------------------------------------------------------------
+
+model Region {
+  id       String  @id @default(cuid())
+  code     String  @unique // ISO-3166-ish, e.g. "EG", "US", "SA"
+  name     String
+  currency String // ISO-4217, e.g. "EGP", "USD", "SAR"
+  taxRule  String? // PG: Json — e.g. {"vat_percent":14}, stored as JSON text
+  active   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variants        ProductVariant[]
+  orders          Order[]
+  homepageBlocks  HomepageBlock[]
+  categoryVisible CategoryRegionVisibility[]
+
+  @@map("regions")
+}
+
+// ----------------------------------------------------------------------------
+// Category / Collection (taxonomy vs. curation — plan §2)
+// ----------------------------------------------------------------------------
+
+model Category {
+  id       String    @id @default(cuid())
+  parentId String?
+  parent   Category? @relation("CategoryToSubcategory", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children Category[] @relation("CategoryToSubcategory")
+
+  name      String
+  slug      String  @unique
+  icon      String? // icon key or URL
+  bannerUrl String?
+  sortOrder Int     @default(0)
+  visible   Boolean @default(true)
+
+  /// Rich text auto-filled onto new products in this category (plan §2,
+  /// "Before You Buy" default notice) — always overridable per product.
+  defaultBuyerNotice String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products         Product[]
+  regionVisibility CategoryRegionVisibility[]
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+/// Per-region visibility toggle for a category (many-to-many with a flag).
+model CategoryRegionVisibility {
+  categoryId String
+  regionId   String
+  visible    Boolean @default(true)
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  region   Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, regionId])
+  @@map("category_region_visibility")
+}
+
+model Collection {
+  id   String @id @default(cuid())
+  name String
+  slug String @unique
+  type String @default("MANUAL") // PG: enum CollectionType — "MANUAL" | "AUTO_RULE"
+
+  iconUrl   String?
+  bannerUrl String?
+  sortOrder Int     @default(0)
+
+  /// Only used when type = AUTO_RULE, e.g. {"metric":"sales_7d","limit":12}
+  autoRuleConfig String? // PG: Json
+
+  scheduleStart DateTime?
+  scheduleEnd   DateTime?
+  active        Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products CollectionProduct[]
+
+  @@map("collections")
+}
+
+/// Join table: a product can belong to many collections without affecting
+/// its category (plan §2).
+model CollectionProduct {
+  collectionId String
+  productId    String
+  sortOrder    Int    @default(0)
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, productId])
+  @@map("collection_products")
+}
+
+// ----------------------------------------------------------------------------
+// Discounts / offers — a single product, a whole category/collection, or
+// the entire storefront, with or without a coupon code.
+// ----------------------------------------------------------------------------
+
+model Discount {
+  id   String @id @default(cuid())
+  name String // shown to buyers, e.g. "Ramadan Sale", "10% off Steam Wallet"
+
+  /// Null = applies automatically, no code needed. Set = buyer must enter
+  /// this code at checkout for it to apply.
+  code String? @unique
+
+  type  String // PG: enum DiscountType — "PERCENT" | "FLAT"
+  value Float // 20 for 20% (PERCENT) or a currency amount (FLAT)
+
+  scope   String // PG: enum DiscountScope — "ALL" | "CATEGORY" | "COLLECTION" | "PRODUCT"
+  scopeId String? // Category/Collection/Product id — unused when scope = ALL
+
+  startsAt DateTime?
+  endsAt   DateTime?
+  active   Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scope, scopeId])
+  @@map("discounts")
+}
+
+// ----------------------------------------------------------------------------
+// Manual payment (InstaPay / Telda) — there's no payment gateway wired up
+// (see README "What's stubbed"). Instead: an admin registers one or more
+// InstaPay/Telda accounts here, the buyer transfers manually to whichever
+// one they pick and uploads a screenshot as proof, and an admin verifies it
+// before the order is fulfilled — the same trust model as cash-on-delivery,
+// just settled through a P2P transfer app instead of cash in hand.
+// ----------------------------------------------------------------------------
+model PaymentMethod {
+  id String @id @default(cuid())
+
+  type  String // PG: enum PaymentMethodType — "INSTAPAY" | "TELDA"
+  label String // shown to the buyer, e.g. "InstaPay — Main account"
+
+  /// The InstaPay username/IPA or Telda number/link the buyer sends money to.
+  handle       String
+  instructions String? // optional extra guidance shown at checkout
+
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@map("payment_methods")
+}
+
+// ----------------------------------------------------------------------------
+// Activation regions (plan §8 — "where can this key/account be used")
+//
+// This is deliberately a separate concept from `Region` above: `Region` is
+// the storefront's pricing/currency region (what a visitor is browsing in,
+// EGP vs USD). `ActivationRegion` is about the product itself — where a key
+// can be redeemed or an account's region is set, independent of who's
+// buying it. A single hierarchy covers all three ways admin wants to scope
+// it: the whole catalog can be GLOBAL, a broad ZONE ("Europe", "Middle
+// East", "Americas"), or one specific COUNTRY ("Egypt", "France") nested
+// under a zone. Admin can add more zones/countries any time — nothing here
+// is hardcoded into the app.
+// ----------------------------------------------------------------------------
+
+model ActivationRegion {
+  id   String @id @default(cuid())
+  name String
+  kind String // "GLOBAL" | "ZONE" | "COUNTRY"
+
+  code String? // ISO-3166 alpha-2, e.g. "EG", "FR" — COUNTRY kind only
+
+  zoneId String? // parent zone — set only when kind = COUNTRY
+  zone   ActivationRegion?  @relation("ZoneCountries", fields: [zoneId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  countries ActivationRegion[] @relation("ZoneCountries")
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variants ProductVariant[]
+
+  @@index([zoneId])
+  @@map("activation_regions")
+}
+
+// ----------------------------------------------------------------------------
+// Product / Variant (plan §1, §2, §9 — the core catalog model)
+// ----------------------------------------------------------------------------
+
+model Product {
+  id         String   @id @default(cuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  type        String // PG: enum ProductType — GAME | GIFTCARD | TOPUP | ACCOUNT | SUBSCRIPTION
+  title       String
+  slug        String  @unique
+  description String? // rich text (HTML/Markdown)
+
+  /// "Before You Buy" box — separate from description, shown as its own
+  /// highlighted section on the product page (plan §2). Overrides
+  /// Category.defaultBuyerNotice when set.
+  buyerNotice String?
+
+  /// Whether checkout requires the buyer to explicitly acknowledge
+  /// buyerNotice via a checkbox (recommended for ACCOUNT / region-locked
+  /// products — plan §2).
+  requiresNoticeAck Boolean @default(false)
+
+  publisher String?
+  platform  String? // free-text platform label at the product level; variants can override
+  tags      String  @default("[]") // PG: String[] — JSON string array
+
+  images         String  @default("[]") // PG: String[] — JSON array of URLs; first = primary/cover
+  /// Optional YouTube trailer/showcase. Admin pastes any normal YouTube
+  /// URL (watch/share/shorts link); it's normalized down to just the
+  /// 11-char video id before saving, so the storefront can build a clean
+  /// embed URL itself. Shown alongside the photo gallery (a "video"
+  /// thumbnail in the mix), not instead of it — some products just need
+  /// one photo and no video at all.
+  videoUrl       String?
+  seoTitle       String?
+  seoDescription String?
+
+  active Boolean @default(true)
+
+  /// Denormalized analytics counters — kept in lockstep with
+  /// ProductAnalyticsEvent (see below) so the homepage's "trending" query
+  /// and the admin product-analytics view can just read a column instead
+  /// of aggregating the whole event log on every request.
+  viewCount       Int @default(0)
+  cartAddCount    Int @default(0)
+  purchaseCount   Int @default(0)
+  /// Weighted score (view=1, add-to-cart=5, purchase=20 per unit) — what
+  /// "AUTO_POPULARITY" homepage blocks actually sort by.
+  popularityScore Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variants        ProductVariant[]
+  customFields    CustomField[]
+  collections     CollectionProduct[]
+  analyticsEvents ProductAnalyticsEvent[]
+
+  @@index([categoryId])
+  @@index([type])
+  @@index([popularityScore])
+  @@map("products")
+}
+
+// ----------------------------------------------------------------------------
+// Product analytics — one row per view / add-to-cart / purchase, so the
+// admin dashboard can chart real behavior over time, not just show a
+// running total. Product.viewCount/cartAddCount/purchaseCount/
+// popularityScore above are a denormalized cache of this log, updated
+// atomically alongside it (see src/lib/analytics.ts) — never read this
+// table for "what's the count right now", read the Product columns;
+// this table is for "what happened, and when".
+// ----------------------------------------------------------------------------
+model ProductAnalyticsEvent {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  type     String // PG: enum ProductAnalyticsEventType — VIEW | ADD_TO_CART | PURCHASE
+  quantity Int    @default(1) // meaningful for ADD_TO_CART / PURCHASE (units)
+  revenue  Float? // PG: Decimal(12,2) — set on PURCHASE only: what was actually paid for this line
+
+  createdAt DateTime @default(now())
+
+  @@index([productId, type, createdAt])
+  @@index([type, createdAt])
+  @@map("product_analytics_events")
+}
+
+/// Independently priced/stocked SKU under a Product — this is where
+/// region, platform, edition, and sale mode (Key vs. Account) combine.
+/// The same game can have a KEY variant and a FULL_ACCOUNT variant side by
+/// side without duplicating the Product (plan §1).
+model ProductVariant {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  regionId String? // pricing/currency region (Region above) — e.g. "storefront shows EGP"
+  region   Region? @relation(fields: [regionId], references: [id])
+
+  activationRegionId String? // where the key/account can actually be used — Global/Zone/Country
+  activationRegion   ActivationRegion? @relation(fields: [activationRegionId], references: [id])
+
+  platform String? // e.g. "PC", "PS5", "Xbox Series X"
+  edition  String? // e.g. "Standard", "Deluxe"
+  sku      String  @unique
+
+  price    Float // PG: Decimal @db.Decimal(12,2)
+  cost     Float? // PG: Decimal @db.Decimal(12,2) — supplier cost, for markup calculations
+  currency String // denormalized from Region for fast display; source of truth is Region.currency
+
+  saleMode       String // PG: enum SaleMode — KEY | FULL_ACCOUNT | SHARED_ACCOUNT | TOPUP_DIRECT
+  deliveryMethod String // PG: enum DeliveryMethod
+
+  stockMode String @default("MANUAL") // PG: enum StockMode — MANUAL | UNLIMITED | PROVIDER_SYNCED
+  stockQty  Int? // null when stockMode = UNLIMITED
+
+  /// Custom message shown on the storefront instead of the default "Out of
+  /// stock" when stockQty hits 0 — e.g. "Restocking Sunday", "Sold out —
+  /// message us on WhatsApp for a similar account". Blank = default text.
+  outOfStockMessage String?
+
+  // --- Region-lock / activation guidance (plan §8) ---
+  // regionLockType describes HOW STRICT activationRegion is (e.g. Europe +
+  // HARD_LOCKED = strictly Europe-only; Global + NONE = no restriction).
+  regionLockType          String  @default("NONE") // PG: enum RegionLockType
+  activationInstructions  String? // e.g. "requires a VPN set to Turkey during activation"
+  redemptionInstructions  String? // platform-specific "how to redeem" snippet
+
+  // --- Account-sale-only fields (sale_mode = FULL_ACCOUNT | SHARED_ACCOUNT) ---
+  warrantyDays        Int?
+  accountAccessLevel  String? // PG: enum AccountAccessLevel — FULL | LOGIN_ONLY
+  accountDeliveryNote String? // e.g. "do not change region/email/2FA"
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItems       OrderItem[]
+  providerMappings ProviderMapping[]
+  keyStock         KeyStockItem[]
+
+  @@index([productId])
+  @@index([regionId])
+  @@index([saleMode])
+  @@map("product_variants")
+}
+
+/// Pre-loaded key/code inventory for AUTO_KEY / SUBSCRIPTION_CODE variants
+/// under manual or provider-synced stock. Encrypted at rest (AES-256-GCM);
+/// one row is consumed and marked used per fulfilled order item.
+model KeyStockItem {
+  id        String         @id @default(cuid())
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  codeEncrypted String // AES-256-GCM ciphertext (iv:tag:ciphertext, hex); never store plaintext
+  used          Boolean    @default(false)
+  usedAt        DateTime?
+  orderItemId   String?    @unique
+  orderItem     OrderItem? @relation(fields: [orderItemId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([variantId, used])
+  @@map("key_stock_items")
+}
+
+/// Admin-defined per-product input fields collected at checkout
+/// (e.g. "Player ID", "Zone ID" for top-ups — plan §2/§8). No code
+/// changes needed to add a new field to a product.
+model CustomField {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  fieldKey  String // machine key, e.g. "player_id"
+  label     String // display label, e.g. "Player ID / UID"
+  type      String  @default("TEXT") // PG: enum CustomFieldType — TEXT | NUMBER | SELECT | EMAIL | CHECKBOX
+  required  Boolean @default(true)
+  options   String  @default("[]") // PG: String[] — JSON array, used when type = SELECT
+  sortOrder Int     @default(0)
+
+  @@unique([productId, fieldKey])
+  @@map("custom_fields")
+}
+
+// ----------------------------------------------------------------------------
+// Provider / Supplier integrations (plan §2, §8)
+// ----------------------------------------------------------------------------
+
+model Provider {
+  id                   String  @id @default(cuid())
+  name                 String // e.g. "Kinguin", "Eneba", "TopupProviderX"
+  apiBaseUrl           String?
+  apiKeyEncrypted      String? // AES-256-GCM ciphertext; decrypted only server-side at call time
+  syncMode             String  @default("OFF") // PG: enum ProviderSyncMode — OFF | STOCK_ONLY | STOCK_AND_PRICE
+  syncFrequencyMinutes Int? // polling interval when webhooks aren't used
+  markupRule           String? // PG: Json — e.g. {"type":"percent","value":8}
+  active               Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mappings ProviderMapping[]
+
+  @@map("providers")
+}
+
+/// Maps a provider's remote SKU to a local ProductVariant, so stock/price
+/// sync and order fulfillment know where to route.
+model ProviderMapping {
+  id         String         @id @default(cuid())
+  providerId String
+  provider   Provider       @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  variantId  String
+  variant    ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  providerSku   String
+  autoSyncStock Boolean   @default(true)
+  autoSyncPrice Boolean   @default(false) // price sync off by default; admin opts in per mapping
+  lastSyncedAt  DateTime?
+
+  @@unique([providerId, providerSku])
+  @@index([variantId])
+  @@map("provider_mappings")
+}
+
+// ----------------------------------------------------------------------------
+// Users / Auth / RBAC
+// ----------------------------------------------------------------------------
+
+model User {
+  id               String  @id @default(cuid())
+  email            String  @unique
+  passwordHash     String?
+  emailVerified    Boolean @default(false)
+  twoFactorSecret  String? // TOTP secret, encrypted at rest
+  twoFactorEnabled Boolean @default(false)
+  kycStatus        String  @default("NONE") // PG: enum KycStatus
+  role             String  @default("CUSTOMER") // PG: enum UserRole
+  points           Int     @default(0) // loyalty/cashback points (plan §9)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders    Order[]
+  auditLogs AdminAuditLog[]
+
+  @@map("users")
+}
+
+// ----------------------------------------------------------------------------
+// Orders
+// ----------------------------------------------------------------------------
+
+model Order {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  regionId String
+  region   Region @relation(fields: [regionId], references: [id])
+
+  status   String @default("PENDING") // PG: enum OrderStatus
+  total    Float // PG: Decimal @db.Decimal(12,2)
+  currency String
+
+  paymentProvider String? // "instapay" | "telda" | "stripe" | "paymob" | "fawry" | "paypal" | "mock" | ...
+  paymentRef      String? // external charge/session id (unused by the manual instapay/telda flow)
+
+  paymentMethodId String?
+  paymentMethod   PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  /// Screenshot the buyer uploaded showing the transfer went through —
+  /// what an admin checks before clicking "Verify payment".
+  paymentProofUrl String?
+
+  /// Manual-payment buyer contact details, collected at checkout since
+  /// there's no payment gateway to pull them from automatically, and
+  /// support needs a way to reach the buyer if the proof is unclear.
+  buyerName  String?
+  buyerPhone String?
+  buyerCity  String?
+
+  verifiedAt   DateTime? // when an admin confirmed the transfer and released fulfillment
+  verifiedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String         @id @default(cuid())
+  orderId   String
+  order     Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+
+  quantity  Int   @default(1)
+  unitPrice Float // PG: Decimal @db.Decimal(12,2) — the variant's price at time of order, before discount
+  discountAmount Float @default(0) // PG: Decimal @db.Decimal(12,2) — total discount applied across `quantity` units
+  discountName   String? // label of the Discount that applied, for the order confirmation ("Ramadan Sale -20%")
+
+  /// Buyer-submitted values for the product's CustomFields
+  /// (e.g. {"player_id":"123456789","zone_id":"7001"}).
+  customFieldValues String? // PG: Json
+
+  /// Encrypted delivery payload (AES-256-GCM): a redeemed key, or account
+  /// credentials. Decrypted only at point of display, one-time reveal +
+  /// logged access (plan §5).
+  deliveryPayloadEncrypted String?
+  deliveredAt              DateTime?
+
+  keyStockItem KeyStockItem?
+
+  @@index([orderId])
+  @@index([variantId])
+  @@map("order_items")
+}
+
+// ----------------------------------------------------------------------------
+// Admin audit log (plan §2, §5 — every admin action logged)
+// ----------------------------------------------------------------------------
+
+model AdminAuditLog {
+  id      String @id @default(cuid())
+  adminId String
+  admin   User   @relation(fields: [adminId], references: [id])
+
+  action String // e.g. "product.price_update", "order.refund"
+  entity String // e.g. "ProductVariant:abc123"
+  before String? // PG: Json
+  after  String? // PG: Json
+
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([entity])
+  @@map("admin_audit_logs")
+}
+
+// ----------------------------------------------------------------------------
+// Homepage builder (plan §2 — block-based, drag-and-drop, region-aware)
+// ----------------------------------------------------------------------------
+
+model HomepageBlock {
+  id   String @id @default(cuid())
+  type String // PG: enum HomepageBlockType — HERO_SLIDER | FEATURED_COLLECTIONS | TRENDING | CATEGORY_GRID | FLASH_DEALS | CUSTOM_BANNER
+
+  /// Flexible per-block-type config (JSON text), e.g.:
+  ///   HERO_SLIDER: {"slides":[{"imageUrl","linkUrl","ctaText"}]}
+  ///   FEATURED_COLLECTIONS: {"collectionIds":["...","..."]}
+  ///   TRENDING: {"rankingMode":"AUTO_SALES","limit":12}
+  ///   CATEGORY_GRID: {"categoryIds":["...","..."]}
+  config String // PG: Json
+
+  rankingMode String? // PG: enum RankingMode — only meaningful for TRENDING-style blocks
+
+  sortOrder      Int     @default(0)
+  targetRegionId String?
+  targetRegion   Region? @relation(fields: [targetRegionId], references: [id])
+
+  scheduleStart DateTime?
+  scheduleEnd   DateTime?
+  active        Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([targetRegionId])
+  @@index([sortOrder])
+  @@map("homepage_blocks")
+}
