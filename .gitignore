@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env*.local
+dist/
+.next/
+*.log
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Leftover local SQLite dev database from before the Supabase Postgres
+# switch (see prisma/schema.prisma) — not needed now, shouldn't ship.
+prisma/dev.db
+prisma/dev.db-journal
+
+*.tsbuildinfo
