@@ -481,10 +481,28 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders    Order[]
-  auditLogs AdminAuditLog[]
+  orders     Order[]
+  auditLogs  AdminAuditLog[]
+  resetCodes PasswordResetCode[]
 
   @@map("users")
+}
+
+// Forgot-password flow: a short-lived, single-use code emailed to the user.
+// Only the SHA-256 hash is stored — never the plaintext code — same
+// "never store the secret itself" principle as encryptSecret()/session
+// tokens elsewhere in this schema.
+model PasswordResetCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_codes")
 }
 
 // ----------------------------------------------------------------------------

@@ -23,6 +23,10 @@ export default async function LoginPage({
 
       <AuthForm action={loginAction} submitLabel="Sign in" next={next} />
 
+      <Link href="/account/forgot-password" className="text-xs text-slate-500 hover:text-accent-soft -mt-2 transition-colors">
+        Forgot your password?
+      </Link>
+
       <p className="text-sm text-slate-500">
         No account?{" "}
         <Link href="/account/register" className="text-accent-soft hover:text-accent font-medium">
