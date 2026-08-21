@@ -4,13 +4,12 @@ node_modules/
 dist/
 .next/
 *.log
-
-# Local SQLite dev database (see .env.example — DATABASE_URL="file:./dev.db")
-prisma/*.db
-prisma/*.db-journal
-
-# Runtime uploads are excluded, but seed data ships its own demo images
-# (see prisma/seed.js) so those stay tracked.
 public/uploads/*
 !public/uploads/.gitkeep
-!public/uploads/demo-*
+
+# Leftover local SQLite dev database from before the Supabase Postgres
+# switch (see prisma/schema.prisma) — not needed now, shouldn't ship.
+prisma/dev.db
+prisma/dev.db-journal
+
+*.tsbuildinfo

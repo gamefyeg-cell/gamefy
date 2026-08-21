@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/format";
 import { DEFAULT_CURRENCY } from "@/lib/currencies";
+import ProductFunnelChart from "@/components/admin/charts/ProductFunnelChart";
+import { FUNNEL_ORDINAL_RAMP } from "@/lib/chartColors";
 
 /// Per-product analytics — separate from the general /admin dashboard on
 /// purpose (that one answers "how's the business doing"; this one answers
@@ -59,24 +61,49 @@ export default async function ProductAnalyticsPage() {
 
       <div className="grid grid-cols-3 gap-4">
         <div className="card p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: FUNNEL_ORDINAL_RAMP[0] }} />
+            <div className="text-sm text-slate-400">Total product views</div>
+          </div>
           <div className="text-3xl font-extrabold text-white">{totals.views.toLocaleString()}</div>
-          <div className="text-sm text-slate-400">Total product views</div>
         </div>
         <div className="card p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: FUNNEL_ORDINAL_RAMP[1] }} />
+            <div className="text-sm text-slate-400">Added to cart</div>
+          </div>
           <div className="text-3xl font-extrabold text-white">{totals.cartAdds.toLocaleString()}</div>
-          <div className="text-sm text-slate-400">Added to cart</div>
           {totals.views > 0 && (
             <div className="text-xs text-accent-soft mt-1">{((totals.cartAdds / totals.views) * 100).toFixed(1)}% of views</div>
           )}
         </div>
         <div className="card p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: FUNNEL_ORDINAL_RAMP[2] }} />
+            <div className="text-sm text-slate-400">Purchased (units)</div>
+          </div>
           <div className="text-3xl font-extrabold text-white">{totals.purchases.toLocaleString()}</div>
-          <div className="text-sm text-slate-400">Purchased (units)</div>
           {totals.cartAdds > 0 && (
             <div className="text-xs text-accent-soft mt-1">{((totals.purchases / totals.cartAdds) * 100).toFixed(1)}% of cart adds</div>
           )}
         </div>
       </div>
+
+      {products.length > 0 && (
+        <div className="card p-5">
+          <h2 className="text-lg font-semibold text-slate-200 mb-1">Views → cart adds → purchases</h2>
+          <p className="text-xs text-slate-500 mb-4">Top {Math.min(8, products.length)} products by popularity score.</p>
+          <ProductFunnelChart
+            data={products.slice(0, 8).map((p) => ({
+              id: p.id,
+              title: p.title,
+              views: p.viewCount,
+              cartAdds: p.cartAddCount,
+              purchases: p.purchaseCount,
+            }))}
+          />
+        </div>
+      )}
 
       <div className="card overflow-x-auto">
         <table className="w-full text-sm min-w-[720px]">

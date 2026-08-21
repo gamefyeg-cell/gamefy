@@ -1,12 +1,19 @@
 import Link from "next/link";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatDate } from "@/lib/format";
 import { labelFor, ORDER_STATUSES } from "@/lib/enums";
 import { DEFAULT_CURRENCY } from "@/lib/currencies";
+import { ORDER_STATUS_COLOR } from "@/lib/orderStatusColors";
+import { GOLD_RAMP, ACCENT_RAMP, STATUS_HEX } from "@/lib/chartColors";
+import RevenueTrendChart from "@/components/admin/charts/RevenueTrendChart";
+import OrderStatusChart from "@/components/admin/charts/OrderStatusChart";
+import TopProductsChart from "@/components/admin/charts/TopProductsChart";
 
 // Statuses that represent money actually collected — excludes PENDING
 // (not yet paid), CANCELLED, REFUNDED, DISPUTED.
 const REVENUE_STATUSES = ["PAID", "FULFILLED", "PARTIALLY_FULFILLED"] as const;
+const TREND_DAYS = 30;
 
 export default async function AdminDashboard() {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -21,6 +28,9 @@ export default async function AdminDashboard() {
     revenueAgg,
     revenueThisWeekAgg,
     topProducts,
+    revenueByDay,
+    statusGroups,
+    revenueByProduct,
   ] = await Promise.all([
     prisma.product.count(),
     prisma.category.count(),
@@ -39,16 +49,66 @@ export default async function AdminDashboard() {
       take: 5,
       select: { id: true, title: true, viewCount: true, cartAddCount: true, purchaseCount: true },
     }),
+    // One row per day for the last TREND_DAYS days, zero-filled via
+    // generate_series so the chart never shows a gap for a quiet day —
+    // Postgres-only (fine now that Supabase is the datasource).
+    prisma.$queryRaw<{ day: Date; total: number }[]>(Prisma.sql`
+      SELECT d.day AS day, COALESCE(SUM(o.total), 0)::float AS total
+      FROM generate_series(
+        date_trunc('day', now()) - interval '${Prisma.raw(String(TREND_DAYS - 1))} days',
+        date_trunc('day', now()),
+        interval '1 day'
+      ) AS d(day)
+      LEFT JOIN "orders" o
+        ON date_trunc('day', o."createdAt") = d.day
+        AND o.status IN (${Prisma.join([...REVENUE_STATUSES])})
+      GROUP BY d.day
+      ORDER BY d.day
+    `),
+    prisma.order.groupBy({ by: ["status"], _count: { _all: true } }),
+    prisma.productAnalyticsEvent.groupBy({
+      by: ["productId"],
+      where: { type: "PURCHASE" },
+      _sum: { revenue: true },
+    }),
   ]);
 
   const stats = [
-    { label: "Total revenue", value: formatMoney(revenueAgg._sum.total ?? 0, DEFAULT_CURRENCY), href: "/admin/orders" },
-    { label: "Revenue (7d)", value: formatMoney(revenueThisWeekAgg._sum.total ?? 0, DEFAULT_CURRENCY), href: "/admin/orders" },
-    { label: "Orders", value: orderCount, href: "/admin/orders" },
-    { label: "Awaiting fulfillment", value: pendingOrders, href: "/admin/orders" },
-    { label: "Products", value: productCount, href: "/admin/products" },
-    { label: "Categories", value: categoryCount, href: "/admin/categories" },
+    { label: "Total revenue", value: formatMoney(revenueAgg._sum.total ?? 0, DEFAULT_CURRENCY), href: "/admin/orders", dot: GOLD_RAMP.DEFAULT },
+    { label: "Revenue (7d)", value: formatMoney(revenueThisWeekAgg._sum.total ?? 0, DEFAULT_CURRENCY), href: "/admin/orders", dot: GOLD_RAMP.light },
+    { label: "Orders", value: orderCount, href: "/admin/orders", dot: ACCENT_RAMP.DEFAULT },
+    { label: "Awaiting fulfillment", value: pendingOrders, href: "/admin/orders", dot: STATUS_HEX.warn },
+    { label: "Products", value: productCount, href: "/admin/products", dot: ACCENT_RAMP.light },
+    { label: "Categories", value: categoryCount, href: "/admin/categories", dot: STATUS_HEX.neutral },
   ];
+
+  const revenueChartData = revenueByDay.map((r) => ({
+    date: r.day.toISOString(),
+    label: new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(r.day),
+    total: r.total,
+  }));
+
+  const statusCountMap = new Map(statusGroups.map((g) => [g.status, g._count._all]));
+  const statusChartData = ORDER_STATUSES.map((s) => ({
+    status: s.value,
+    label: s.label,
+    count: statusCountMap.get(s.value) ?? 0,
+    color: ORDER_STATUS_COLOR[s.value].hex,
+  }));
+
+  const revenueMap = new Map(revenueByProduct.map((r) => [r.productId, r._sum.revenue ?? 0]));
+  const productTitleMap = new Map(topProducts.map((p) => [p.id, p.title]));
+  const topByRevenue = [...revenueMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  // Need titles for products that made revenue but weren't in the
+  // popularity-sorted topProducts list — fetch any missing ones.
+  const missingIds = topByRevenue.map(([id]) => id).filter((id) => !productTitleMap.has(id));
+  const missingTitles = missingIds.length
+    ? await prisma.product.findMany({ where: { id: { in: missingIds } }, select: { id: true, title: true } })
+    : [];
+  missingTitles.forEach((p) => productTitleMap.set(p.id, p.title));
+  const revenueChartRows = topByRevenue
+    .filter(([, revenue]) => revenue > 0)
+    .map(([id, revenue]) => ({ id, title: productTitleMap.get(id) ?? "Unknown product", value: revenue }));
 
   return (
     <div className="flex flex-col gap-8">
@@ -57,11 +117,32 @@ export default async function AdminDashboard() {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {stats.map((s) => (
           <Link key={s.label} href={s.href} className="card card-hover p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: s.dot }} />
+              <div className="text-sm text-slate-400">{s.label}</div>
+            </div>
             <div className="text-3xl font-extrabold text-white">{s.value}</div>
-            <div className="text-sm text-slate-400">{s.label}</div>
           </Link>
         ))}
       </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        <div className="card p-5">
+          <h2 className="text-lg font-semibold text-slate-200 mb-3">Revenue (last {TREND_DAYS} days)</h2>
+          <RevenueTrendChart data={revenueChartData} currency={DEFAULT_CURRENCY} />
+        </div>
+        <div className="card p-5">
+          <h2 className="text-lg font-semibold text-slate-200 mb-3">Orders by status</h2>
+          <OrderStatusChart data={statusChartData} />
+        </div>
+      </div>
+
+      {revenueChartRows.length > 0 && (
+        <div className="card p-5">
+          <h2 className="text-lg font-semibold text-slate-200 mb-3">Top products by revenue</h2>
+          <TopProductsChart data={revenueChartRows} valueLabel="" format="money" currency={DEFAULT_CURRENCY} />
+        </div>
+      )}
 
       <div>
         <div className="flex items-center justify-between mb-3">
