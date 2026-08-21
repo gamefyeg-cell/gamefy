@@ -104,18 +104,26 @@ export async function requestPasswordResetAction(
         },
       });
 
-      await sendMail({
-        to: user.email,
-        subject: "Your Gamefy password reset code",
-        html: `
-          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-            <h2 style="margin-bottom: 4px;">Reset your Gamefy password</h2>
-            <p style="color: #555;">Use this code to finish resetting your password. It expires in ${RESET_CODE_TTL_MINUTES} minutes.</p>
-            <p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; text-align: center; margin: 24px 0; padding: 16px; background: #f4f4f4; border-radius: 8px;">${code}</p>
-            <p style="color: #888; font-size: 13px;">If you didn't request this, you can safely ignore this email — your password won't change.</p>
-          </div>
-        `,
-      });
+      // Never let an email-provider hiccup crash this request — the code
+      // already exists in the DB either way; log and move on to the next
+      // step so a transient SMTP failure degrades to "no email arrived"
+      // instead of a 500 for every visitor hitting this form.
+      try {
+        await sendMail({
+          to: user.email,
+          subject: "Your Gamefy password reset code",
+          html: `
+            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+              <h2 style="margin-bottom: 4px;">Reset your Gamefy password</h2>
+              <p style="color: #555;">Use this code to finish resetting your password. It expires in ${RESET_CODE_TTL_MINUTES} minutes.</p>
+              <p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; text-align: center; margin: 24px 0; padding: 16px; background: #f4f4f4; border-radius: 8px;">${code}</p>
+              <p style="color: #888; font-size: 13px;">If you didn't request this, you can safely ignore this email — your password won't change.</p>
+            </div>
+          `,
+        });
+      } catch (err) {
+        console.error("[requestPasswordResetAction] sendMail failed:", err);
+      }
     }
   }
 
