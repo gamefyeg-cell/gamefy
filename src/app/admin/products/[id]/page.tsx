@@ -8,6 +8,7 @@ import { parseStringArray } from "@/lib/json";
 import { formatMoney } from "@/lib/format";
 import ActivationRegionSelect from "@/components/admin/ActivationRegionSelect";
 import ImageUploader from "@/components/admin/ImageUploader";
+import RichTextArea from "@/components/admin/RichTextArea";
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -98,14 +99,13 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           <p className="text-xs text-slate-600 mt-1">Paste any YouTube link — watch, share, or shorts. Shown as a video tile in the product gallery.</p>
         </div>
         <div className="md:col-span-2">
-          <label className="label">
-            Description — supports **bold**, "- " bullet points, and emoji/icons typed directly
-          </label>
-          <textarea name="description" rows={4} defaultValue={product.description ?? ""} className="input" />
+          <label className="label">Description</label>
+          <RichTextArea name="description" rows={4} defaultValue={product.description ?? ""} />
+          <p className="hint">Use the B / • List buttons above, or type emoji/icons directly (🎮 ⚡ 🔑).</p>
         </div>
         <div className="md:col-span-2">
-          <label className="label">"Before You Buy" notice (overrides category default; same formatting)</label>
-          <textarea name="buyerNotice" rows={3} defaultValue={product.buyerNotice ?? ""} className="input" />
+          <label className="label">"Before You Buy" notice (overrides category default)</label>
+          <RichTextArea name="buyerNotice" rows={3} defaultValue={product.buyerNotice ?? ""} />
         </div>
         <div className="flex items-center gap-2">
           <input type="checkbox" name="requiresNoticeAck" defaultChecked={product.requiresNoticeAck} className="h-4 w-4" />

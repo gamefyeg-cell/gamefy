@@ -12,6 +12,7 @@ import {
 import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/currencies";
 import ActivationRegionSelect from "@/components/admin/ActivationRegionSelect";
 import ImageUploader from "@/components/admin/ImageUploader";
+import RichTextArea from "@/components/admin/RichTextArea";
 
 export default async function AdminProductsPage() {
   const [products, categories, activationRegions] = await Promise.all([
@@ -138,20 +139,19 @@ export default async function AdminProductsPage() {
               </div>
               <div>
                 <label className="label">Description</label>
-                <textarea
+                <RichTextArea
                   name="description"
                   rows={4}
-                  className="input"
-                  placeholder={"Standard Edition, PC.\n- Full game, latest squads\n- **Instant delivery**"}
+                  placeholder={"Standard Edition, PC.\n- Full game, latest squads\n- Instant delivery"}
                 />
-                <p className="hint">Supports **bold**, "- " bullet points, and emoji/icons typed directly (🎮 ⚡ 🔑).</p>
+                <p className="hint">Use the B / • List buttons above, or type emoji/icons directly (🎮 ⚡ 🔑).</p>
               </div>
               <div>
                 <label className="label">"Before You Buy" notice</label>
-                <textarea name="buyerNotice" rows={3} className="input" placeholder='e.g. "- Requires a VPN set to Turkey during activation"' />
+                <RichTextArea name="buyerNotice" rows={3} placeholder='e.g. "Requires a VPN set to Turkey during activation"' />
                 <p className="hint">
                   Shown as its own highlighted warning box on the product page — for anything a buyer must know
-                  before purchasing (region locks, activation steps). Same **bold**/"- " formatting supported.
+                  before purchasing (region locks, activation steps).
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
