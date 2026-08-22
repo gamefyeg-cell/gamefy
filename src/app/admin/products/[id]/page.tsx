@@ -158,130 +158,182 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           ))}
         </div>
 
-        <form action={createVariantAction} className="card p-5 mt-4 grid md:grid-cols-3 gap-4">
+        <form action={createVariantAction} className="card p-6 mt-4 flex flex-col gap-6">
           <input type="hidden" name="productId" value={product.id} />
+
           <div>
-            <label className="label">SKU</label>
-            <input name="sku" required className="input" placeholder={`${product.slug}-...`} />
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">What is this option</p>
+            <div className="grid md:grid-cols-3 gap-5">
+              <div>
+                <label className="label">SKU</label>
+                <input name="sku" required className="input" placeholder={`${product.slug}-...`} />
+                <p className="hint">Your own internal code for this exact option — must be unique across the whole store.</p>
+              </div>
+              <div>
+                <label className="label">Sale mode</label>
+                <select name="saleMode" className="input">
+                  {SALE_MODES.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="hint">Key = buyer redeems a code themselves. Full/Shared Account = you deliver login credentials.</p>
+              </div>
+              <div>
+                <label className="label">Delivery method</label>
+                <select name="deliveryMethod" className="input">
+                  {DELIVERY_METHODS.map((d) => (
+                    <option key={d.value} value={d.value}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="hint">How this reaches the buyer after payment — automatically from stock, or manually by you.</p>
+              </div>
+              <div>
+                <label className="label">Platform</label>
+                <select name="platform" className="input" defaultValue="">
+                  <option value="">— Not set —</option>
+                  {PLATFORMS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="hint">Only needed if this same product also has other-platform variants.</p>
+              </div>
+              <div>
+                <label className="label">Edition</label>
+                <input name="edition" className="input" placeholder="Standard / Deluxe" />
+                <p className="hint">Only needed if this product sells more than one edition.</p>
+              </div>
+              <div>
+                <label className="label">Duration / plan (subscriptions)</label>
+                <input name="durationLabel" className="input" placeholder="1 Month / 3 Months / Lifetime" />
+                <p className="hint">Add one variant per length, same as this one — they'll show as a plan picker on the product page.</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="label">Sale mode</label>
-            <select name="saleMode" className="input">
-              {SALE_MODES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+
+          <div className="border-t border-border pt-5">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Price &amp; stock</p>
+            <div className="grid md:grid-cols-3 gap-5">
+              <div>
+                <label className="label">Price</label>
+                <input name="price" type="number" step="0.01" required className="input" />
+                <p className="hint">What the buyer pays for this option, before any discount.</p>
+              </div>
+              <div>
+                <label className="label">Currency</label>
+                <select name="currency" defaultValue={DEFAULT_CURRENCY} required className="input">
+                  {CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} — {c.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="hint">Shown next to the price on the storefront.</p>
+              </div>
+              <div>
+                <label className="label">Stock mode</label>
+                <select name="stockMode" className="input">
+                  {STOCK_MODES.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="hint">Manual = you track an exact count. Unlimited = never runs out.</p>
+              </div>
+              <div>
+                <label className="label">Stock qty</label>
+                <input name="stockQty" type="number" className="input" />
+                <p className="hint">Only used when Stock mode above is "Manual count".</p>
+              </div>
+              <div className="md:col-span-2">
+                <label className="label">Sold-out message (optional)</label>
+                <input name="outOfStockMessage" className="input" placeholder='e.g. "Restocking Sunday"' />
+                <p className="hint">Shown instead of the default "Out of stock" text once stock hits 0.</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="label">Delivery method</label>
-            <select name="deliveryMethod" className="input">
-              {DELIVERY_METHODS.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
+
+          <div className="border-t border-border pt-5">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Where it works</p>
+            <div className="grid md:grid-cols-2 gap-5">
+              <div>
+                <label className="label">Activation region</label>
+                <ActivationRegionSelect name="activationRegionId" regions={activationRegions} />
+                <p className="hint">Where this key/account actually works — Global, a zone, or one country.</p>
+              </div>
+              <div>
+                <label className="label">Region lock type</label>
+                <select name="regionLockType" className="input">
+                  {REGION_LOCK_TYPES.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="hint">How strict the region above is — e.g. "works anywhere but needs a VPN" vs. strictly locked.</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="label">Platform</label>
-            <select name="platform" className="input" defaultValue="">
-              <option value="">— Not set —</option>
-              {PLATFORMS.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
+
+          <div className="border-t border-border pt-5">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Account-sale details (Full/Shared Account only)</p>
+            <div className="grid md:grid-cols-2 gap-5">
+              <div>
+                <label className="label">Account access</label>
+                <select name="accountAccessLevel" className="input">
+                  <option value="">—</option>
+                  {ACCOUNT_ACCESS_LEVELS.map((a) => (
+                    <option key={a.value} value={a.value}>
+                      {a.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="hint">Full = buyer can change everything. Login only = shared/rental, buyer never changes it.</p>
+              </div>
+              <div>
+                <label className="label">Warranty days</label>
+                <input name="warrantyDays" type="number" className="input" />
+                <p className="hint">How many days you'll replace this account if it stops working. Leave blank for none.</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="label">Edition</label>
-            <input name="edition" className="input" placeholder="Standard / Deluxe" />
+
+          <div className="border-t border-border pt-5">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Notes shown to the buyer</p>
+            <div className="flex flex-col gap-5">
+              <div>
+                <label className="label">Activation instructions</label>
+                <input name="activationInstructions" className="input" placeholder="e.g. requires a VPN set to Turkey during activation" />
+                <p className="hint">Shown on the product page as a small note next to the price.</p>
+              </div>
+              <div>
+                <label className="label">Redemption instructions</label>
+                <input name="redemptionInstructions" className="input" placeholder="e.g. Steam > Games > Activate a Product" />
+                <p className="hint">Shown on the product page — how the buyer actually uses/redeems what they bought.</p>
+              </div>
+              <div>
+                <label className="label">Account delivery note</label>
+                <input name="accountDeliveryNote" className="input" placeholder="e.g. do not change email or enable 2FA" />
+                <p className="hint">Shown together with the delivered credentials, e.g. rules for a shared/rental account.</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="label">Duration / plan (subscriptions)</label>
-            <input name="durationLabel" className="input" placeholder="1 Month / 3 Months / Lifetime" />
-          </div>
-          <div>
-            <label className="label">Price</label>
-            <input name="price" type="number" step="0.01" required className="input" />
-          </div>
-          <div>
-            <label className="label">Currency</label>
-            <select name="currency" defaultValue={DEFAULT_CURRENCY} required className="input">
-              {CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code} — {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Stock mode</label>
-            <select name="stockMode" className="input">
-              {STOCK_MODES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Stock qty (manual mode)</label>
-            <input name="stockQty" type="number" className="input" />
-          </div>
-          <div className="md:col-span-3">
-            <label className="label">Sold-out message (optional — shown instead of "Out of stock")</label>
-            <input name="outOfStockMessage" className="input" placeholder='e.g. "Restocking Sunday"' />
-          </div>
-          <div>
-            <label className="label">Activation region — where this can be used (Global / a zone / a country)</label>
-            <ActivationRegionSelect name="activationRegionId" regions={activationRegions} />
-          </div>
-          <div>
-            <label className="label">Region lock type (how strict the activation region is)</label>
-            <select name="regionLockType" className="input">
-              {REGION_LOCK_TYPES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Account access (account sale modes only)</label>
-            <select name="accountAccessLevel" className="input">
-              <option value="">—</option>
-              {ACCOUNT_ACCESS_LEVELS.map((a) => (
-                <option key={a.value} value={a.value}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Warranty days (account sale modes)</label>
-            <input name="warrantyDays" type="number" className="input" />
-          </div>
-          <div className="md:col-span-3">
-            <label className="label">Activation instructions</label>
-            <input name="activationInstructions" className="input" placeholder="e.g. requires a VPN set to Turkey during activation" />
-          </div>
-          <div className="md:col-span-3">
-            <label className="label">Redemption instructions</label>
-            <input name="redemptionInstructions" className="input" placeholder="e.g. Steam > Games > Activate a Product" />
-          </div>
-          <div className="md:col-span-3">
-            <label className="label">Account delivery note</label>
-            <input name="accountDeliveryNote" className="input" placeholder="e.g. do not change email or enable 2FA" />
-          </div>
-          <div className="flex items-center gap-2">
-            <input type="checkbox" name="active" defaultChecked className="h-4 w-4" />
-            <span className="text-sm text-slate-300">Active</span>
-          </div>
-          <div className="md:col-span-3">
-            <button type="submit" className="btn-primary">
+
+          <div className="border-t border-border pt-5 flex items-center justify-between">
+            <label className="flex items-start gap-2">
+              <input type="checkbox" name="active" defaultChecked className="h-4 w-4 mt-0.5" />
+              <span className="flex flex-col">
+                <span className="text-sm text-slate-300">Active</span>
+                <span className="hint !mt-0">Unchecking hides just this option from the storefront, without deleting it.</span>
+              </span>
+            </label>
+            <button type="submit" className="btn-primary !px-6 !py-2.5">
               Add variant
             </button>
           </div>

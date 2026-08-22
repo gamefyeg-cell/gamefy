@@ -83,6 +83,18 @@
   .label {
     @apply block text-xs font-medium text-slate-400 mb-1;
   }
+  /* Plain-language "what this field does" line under a form field —
+     deliberately quiet (not an error, not a warning) so a long form of
+     these doesn't read as noisy. */
+  .hint {
+    @apply text-xs text-slate-600 mt-1;
+  }
+  /* Icon + title + one-line description heading a form section (e.g. the
+     "Add product" form) — gives a long form visual checkpoints instead of
+     one undifferentiated wall of fields. */
+  .form-section-heading {
+    @apply flex items-center gap-2 text-sm font-semibold text-slate-200 mb-1;
+  }
   .badge {
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
   }

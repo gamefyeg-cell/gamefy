@@ -43,116 +43,151 @@ export default async function AdminProductsPage() {
         ))}
       </div>
 
-      <div className="card p-5">
-        <h2 className="text-lg font-semibold text-slate-200 mb-1">Add product</h2>
-        <p className="text-xs text-slate-500 mb-4">
-          Fill in the "Price" section below to create this product ready to sell in one step. Skip it
-          to create a bare listing and add purchase options (e.g. a Key version <em>and</em> an Account
-          version) afterward from the product page — either way works.
+      <div className="card p-6 sm:p-8">
+        <h2 className="text-xl font-semibold text-white mb-1">Add product</h2>
+        <p className="text-sm text-slate-500 mb-8 max-w-2xl">
+          Fill in <strong className="text-slate-400">Step 4 — Price &amp; availability</strong> to create this
+          product ready to sell in one step. Skip it to create a bare listing and add purchase options (e.g. a
+          Key version <em>and</em> an Account version) afterward from the product page — either way works.
         </p>
         {categories.length === 0 ? (
           <p className="text-sm text-warn">Create a category first — products need one.</p>
         ) : (
-          <form action={createProductAction} className="flex flex-col gap-6">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="label">Title</label>
-                <input name="title" required className="input" placeholder="FIFA 25" />
+          <form action={createProductAction} className="flex flex-col gap-9">
+            {/* --- Step 1: Basics --- */}
+            <div className="flex flex-col gap-4">
+              <div className="form-section-heading">
+                <span className="text-base">🧩</span>
+                <span>1. Basics</span>
+                <span className="badge bg-danger/10 text-danger border border-danger/30 ml-1 text-[10px]">Required</span>
+              </div>
+              <div className="grid md:grid-cols-2 gap-5">
+                <div>
+                  <label className="label">Title</label>
+                  <input name="title" required className="input" placeholder="FIFA 25" />
+                  <p className="hint">The product's name — shown on the storefront, in the cart, and on the buyer's receipt.</p>
+                </div>
+                <div>
+                  <label className="label">Slug (optional)</label>
+                  <input name="slug" className="input" placeholder="auto-generated from title" />
+                  <p className="hint">
+                    The web address for this product, e.g. "FIFA 25" → <code>/products/fifa-25</code>. Leave
+                    blank and it's generated for you — only change it if you want a specific URL.
+                  </p>
+                </div>
+                <div>
+                  <label className="label">Category</label>
+                  <select name="categoryId" required className="input">
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="hint">Which shelf this shows under on the storefront (e.g. Games, Gift Cards).</p>
+                </div>
+                <div>
+                  <label className="label">Type</label>
+                  <select name="type" className="input">
+                    {PRODUCT_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="hint">For your own organization/filtering only — it doesn't limit which sale modes you can add below.</p>
+                </div>
+                <div>
+                  <label className="label">Platform</label>
+                  <select name="platform" className="input" defaultValue="">
+                    <option value="">— Not set —</option>
+                    {PLATFORMS.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="hint">Shown as a small badge on the product page (e.g. "PC"). Leave unset if it doesn't apply.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* --- Step 2: Media --- */}
+            <div className="flex flex-col gap-4 border-t border-border pt-8">
+              <div className="form-section-heading">
+                <span className="text-base">🖼️</span>
+                <span>2. Media</span>
               </div>
               <div>
-                <label className="label">Slug (optional)</label>
-                <input name="slug" className="input" placeholder="auto-generated from title" />
-                <p className="text-xs text-slate-600 mt-1">
-                  The web address for this product, e.g. "FIFA 25" → <code>/products/fifa-25</code>. Leave
-                  blank and it's generated for you — only change it if you want a specific URL.
+                <label className="label">Images</label>
+                <ImageUploader name="images" />
+                <p className="hint">Upload one or more photos — the first becomes the cover shown on cards and search. One photo is fine.</p>
+              </div>
+              <div>
+                <label className="label">YouTube trailer (optional)</label>
+                <input name="videoUrl" className="input" placeholder="https://www.youtube.com/watch?v=..." />
+                <p className="hint">Paste any YouTube link — watch, share, or shorts. Shown as a video tile alongside the photos.</p>
+              </div>
+            </div>
+
+            {/* --- Step 3: Description & policies --- */}
+            <div className="flex flex-col gap-4 border-t border-border pt-8">
+              <div className="form-section-heading">
+                <span className="text-base">📝</span>
+                <span>3. Description &amp; policies</span>
+              </div>
+              <div>
+                <label className="label">Description</label>
+                <textarea
+                  name="description"
+                  rows={4}
+                  className="input"
+                  placeholder={"Standard Edition, PC.\n- Full game, latest squads\n- **Instant delivery**"}
+                />
+                <p className="hint">Supports **bold**, "- " bullet points, and emoji/icons typed directly (🎮 ⚡ 🔑).</p>
+              </div>
+              <div>
+                <label className="label">"Before You Buy" notice</label>
+                <textarea name="buyerNotice" rows={3} className="input" placeholder='e.g. "- Requires a VPN set to Turkey during activation"' />
+                <p className="hint">
+                  Shown as its own highlighted warning box on the product page — for anything a buyer must know
+                  before purchasing (region locks, activation steps). Same **bold**/"- " formatting supported.
                 </p>
               </div>
-              <div>
-                <label className="label">Category</label>
-                <select name="categoryId" required className="input">
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label">Type</label>
-                <select name="type" className="input">
-                  {PRODUCT_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label">Platform</label>
-                <select name="platform" className="input" defaultValue="">
-                  <option value="">— Not set —</option>
-                  {PLATFORMS.map((p) => (
-                    <option key={p.value} value={p.value}>
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
+                <label className="flex items-start gap-2">
+                  <input type="checkbox" name="requiresNoticeAck" className="h-4 w-4 mt-0.5" />
+                  <span className="flex flex-col">
+                    <span className="text-sm text-slate-300">Require checkout acknowledgement</span>
+                    <span className="hint !mt-0">Buyer must tick a box confirming they read the notice above before they can pay.</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2">
+                  <input type="checkbox" name="active" defaultChecked className="h-4 w-4 mt-0.5" />
+                  <span className="flex flex-col">
+                    <span className="text-sm text-slate-300">Active</span>
+                    <span className="hint !mt-0">Unchecking hides this product from the storefront immediately, without deleting it.</span>
+                  </span>
+                </label>
               </div>
             </div>
 
-            <div>
-              <label className="label">Images (multiple — first one becomes the cover; add just one if that's all you need)</label>
-              <ImageUploader name="images" />
-            </div>
-
-            <div>
-              <label className="label">YouTube trailer (optional)</label>
-              <input name="videoUrl" className="input" placeholder="https://www.youtube.com/watch?v=..." />
-              <p className="text-xs text-slate-600 mt-1">Paste any YouTube link — watch, share, or shorts. Shown as a video tile in the product gallery.</p>
-            </div>
-
-            <div>
-              <label className="label">
-                Description — supports **bold**, "- " bullet points, and emoji/icons typed directly (🎮 ⚡ 🔑)
-              </label>
-              <textarea
-                name="description"
-                rows={4}
-                className="input"
-                placeholder={"Standard Edition, PC.\n- Full game, latest squads\n- **Instant delivery**"}
-              />
-            </div>
-
-            <div>
-              <label className="label">
-                "Before You Buy" notice — shown as its own highlighted box on the product page (same
-                **bold** / "- " bullet formatting supported)
-              </label>
-              <textarea name="buyerNotice" rows={3} className="input" placeholder='e.g. "- Requires a VPN set to Turkey during activation"' />
-            </div>
-
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" name="requiresNoticeAck" className="h-4 w-4" />
-                <span className="text-sm text-slate-300">Require checkout acknowledgement of the notice</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" name="active" defaultChecked className="h-4 w-4" />
-                <span className="text-sm text-slate-300">Active</span>
-              </label>
-            </div>
-
-            <div className="border-t border-border pt-5">
-              <h3 className="text-sm font-semibold text-slate-200 mb-1">Price &amp; availability (optional)</h3>
-              <p className="text-xs text-slate-500 mb-4">
-                Sets up the first purchase option for this product — its price, currency, how it's
-                delivered, and where it can be activated (Global, a zone like Europe, or a specific
-                country like Egypt).
+            {/* --- Step 4: Price & availability --- */}
+            <div className="flex flex-col gap-4 border-t border-border pt-8">
+              <div className="form-section-heading">
+                <span className="text-base">💰</span>
+                <span>4. Price &amp; availability</span>
+                <span className="badge bg-surface2 border border-border text-slate-500 ml-1 text-[10px]">Optional</span>
+              </div>
+              <p className="text-xs text-slate-500 -mt-2">
+                Sets up the first purchase option for this product — its price, currency, how it's delivered, and
+                where it can be activated. Leave "Price" blank to create a bare listing with no purchase option yet.
               </p>
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className="grid md:grid-cols-3 gap-5">
                 <div>
                   <label className="label">Price</label>
                   <input name="price" type="number" step="0.01" className="input" placeholder="1200" />
+                  <p className="hint">What the buyer pays, before any discount is applied.</p>
                 </div>
                 <div>
                   <label className="label">Currency</label>
@@ -163,6 +198,7 @@ export default async function AdminProductsPage() {
                       </option>
                     ))}
                   </select>
+                  <p className="hint">Shown next to the price everywhere on the storefront.</p>
                 </div>
                 <div>
                   <label className="label">Sale mode</label>
@@ -173,13 +209,14 @@ export default async function AdminProductsPage() {
                       </option>
                     ))}
                   </select>
+                  <p className="hint">Key = buyer redeems a code themselves. Full/Shared Account = you deliver login credentials.</p>
                 </div>
                 <div>
-                  <label className="label">Duration / plan (subscriptions — optional)</label>
+                  <label className="label">Duration / plan (subscriptions)</label>
                   <input name="durationLabel" className="input" placeholder="1 Month / 3 Months / Lifetime" />
-                  <p className="text-xs text-slate-600 mt-1">
-                    For subscriptions sold at multiple lengths: add this product once, then add one variant per
-                    length (e.g. "1 Month", "3 Months") from the product page — they'll show as a plan picker.
+                  <p className="hint">
+                    Selling multiple lengths? Add this product once, then add one variant per length from the
+                    product page afterward — they'll show as a plan picker.
                   </p>
                 </div>
                 <div>
@@ -191,6 +228,7 @@ export default async function AdminProductsPage() {
                       </option>
                     ))}
                   </select>
+                  <p className="hint">How this reaches the buyer after payment is verified — automatically from stock, or manually by you.</p>
                 </div>
                 <div>
                   <label className="label">Stock mode</label>
@@ -201,24 +239,28 @@ export default async function AdminProductsPage() {
                       </option>
                     ))}
                   </select>
+                  <p className="hint">Manual = you track an exact count. Unlimited = never runs out (e.g. generated on demand).</p>
                 </div>
                 <div>
-                  <label className="label">Stock qty (manual mode)</label>
+                  <label className="label">Stock qty</label>
                   <input name="stockQty" type="number" className="input" />
+                  <p className="hint">Only used when Stock mode above is "Manual count".</p>
                 </div>
                 <div>
                   <label className="label">Activation region</label>
                   <ActivationRegionSelect name="activationRegionId" regions={activationRegions} />
+                  <p className="hint">Where this key/account actually works. Leave as Global unless it's region-locked.</p>
                 </div>
                 <div className="md:col-span-2">
                   <label className="label">Sold-out message (optional)</label>
                   <input name="outOfStockMessage" className="input" placeholder='e.g. "Restocking Sunday"' />
+                  <p className="hint">Shown instead of the default "Out of stock" text once stock hits 0.</p>
                 </div>
               </div>
             </div>
 
-            <div>
-              <button type="submit" className="btn-primary">
+            <div className="border-t border-border pt-6">
+              <button type="submit" className="btn-primary !px-6 !py-2.5">
                 Create product
               </button>
             </div>
