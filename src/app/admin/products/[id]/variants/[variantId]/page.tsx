@@ -78,6 +78,15 @@ export default async function EditVariantPage({
           <input name="edition" defaultValue={variant.edition ?? ""} className="input" />
         </div>
         <div>
+          <label className="label">Duration / plan (subscriptions)</label>
+          <input
+            name="durationLabel"
+            defaultValue={variant.durationLabel ?? ""}
+            className="input"
+            placeholder="1 Month / 3 Months / Lifetime"
+          />
+        </div>
+        <div>
           <label className="label">Price</label>
           <input name="price" type="number" step="0.01" defaultValue={variant.price} required className="input" />
         </div>

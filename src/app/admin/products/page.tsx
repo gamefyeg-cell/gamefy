@@ -175,6 +175,14 @@ export default async function AdminProductsPage() {
                   </select>
                 </div>
                 <div>
+                  <label className="label">Duration / plan (subscriptions — optional)</label>
+                  <input name="durationLabel" className="input" placeholder="1 Month / 3 Months / Lifetime" />
+                  <p className="text-xs text-slate-600 mt-1">
+                    For subscriptions sold at multiple lengths: add this product once, then add one variant per
+                    length (e.g. "1 Month", "3 Months") from the product page — they'll show as a plan picker.
+                  </p>
+                </div>
+                <div>
                   <label className="label">Delivery method</label>
                   <select name="deliveryMethod" className="input">
                     {DELIVERY_METHODS.map((d) => (

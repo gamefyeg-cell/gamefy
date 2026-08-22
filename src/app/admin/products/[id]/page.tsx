@@ -145,7 +145,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
                 </span>
                 <span className="text-slate-200">{v.sku}</span>
                 <span className="text-slate-500 ml-2 text-xs">
-                  {[v.platform, v.edition].filter(Boolean).join(" · ")} ·{" "}
+                  {[v.durationLabel, v.platform, v.edition].filter(Boolean).join(" · ")} ·{" "}
                   {v.activationRegion ? `activates: ${v.activationRegion.name}` : "activation region not set"} ·{" "}
                   {formatMoney(v.price, v.currency)} ·{" "}
                   {v.stockMode === "MANUAL" ? `${v.stockQty ?? 0} in stock` : v.stockMode}
@@ -198,6 +198,10 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           <div>
             <label className="label">Edition</label>
             <input name="edition" className="input" placeholder="Standard / Deluxe" />
+          </div>
+          <div>
+            <label className="label">Duration / plan (subscriptions)</label>
+            <input name="durationLabel" className="input" placeholder="1 Month / 3 Months / Lifetime" />
           </div>
           <div>
             <label className="label">Price</label>

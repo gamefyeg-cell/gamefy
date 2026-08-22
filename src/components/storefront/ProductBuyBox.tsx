@@ -14,6 +14,7 @@ interface Variant {
   sku: string;
   platform: string | null;
   edition: string | null;
+  durationLabel: string | null;
   price: number;
   currency: string;
   saleMode: string;
@@ -58,6 +59,15 @@ export default function ProductBuyBox({
   const saleModes = useMemo(() => Array.from(new Set(variants.map((v) => v.saleMode))), [variants]);
   const [activeSaleMode, setActiveSaleMode] = useState(saleModes[0]);
   const variantsForMode = variants.filter((v) => v.saleMode === activeSaleMode);
+  // If every variant in this sale mode has its own distinct duration label
+  // (e.g. "1 Month" / "3 Months" / "1 Year") and nothing else differs, show
+  // it as a proper plan picker instead of the generic "Choose option"
+  // dropdown — reads like real subscription pricing.
+  const durations = useMemo(
+    () => Array.from(new Set(variantsForMode.map((v) => v.durationLabel).filter(Boolean))),
+    [variantsForMode]
+  );
+  const usesDurationPicker = durations.length > 1 && durations.length === variantsForMode.length;
   const [variantId, setVariantId] = useState(variantsForMode[0]?.id ?? "");
   const [qty, setQty] = useState(1);
   const [pending, setPending] = useState(false);
@@ -122,26 +132,58 @@ export default function ProductBuyBox({
         </div>
       )}
 
-      {variantsForMode.length > 1 && (
+      {usesDurationPicker ? (
         <div>
-          <label className="label">Choose option</label>
-          <select
-            className="input"
-            value={variantId}
-            onChange={(e) => {
-              setVariantId(e.target.value);
-              setAdded(false);
-            }}
-          >
+          <label className="label">Choose plan</label>
+          <div className="flex flex-wrap gap-2">
             {variantsForMode.map((v) => (
-              <option key={v.id} value={v.id}>
-                {[v.platform, v.edition, v.activationRegion?.name].filter(Boolean).join(" · ") || v.sku}
-                {" — "}
-                {formatMoney(v.price, v.currency)}
-              </option>
+              <motion.button
+                key={v.id}
+                type="button"
+                onClick={() => {
+                  setVariantId(v.id);
+                  setAdded(false);
+                }}
+                whileTap={tapFeedback}
+                className={`relative btn !px-3 !py-2 flex-col !items-start gap-0.5 ${
+                  variantId === v.id ? "text-white" : "bg-surface2 text-slate-300 border border-border"
+                }`}
+              >
+                {variantId === v.id && (
+                  <motion.span
+                    layoutId="durationTabPill"
+                    transition={springs.snappy}
+                    className="absolute inset-0 bg-accent rounded-lg -z-10"
+                  />
+                )}
+                <span className="relative text-xs font-semibold">{v.durationLabel}</span>
+                <span className="relative text-[10px] opacity-80">{formatMoney(v.price, v.currency)}</span>
+              </motion.button>
             ))}
-          </select>
+          </div>
         </div>
+      ) : (
+        variantsForMode.length > 1 && (
+          <div>
+            <label className="label">Choose option</label>
+            <select
+              className="input"
+              value={variantId}
+              onChange={(e) => {
+                setVariantId(e.target.value);
+                setAdded(false);
+              }}
+            >
+              {variantsForMode.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {[v.durationLabel, v.platform, v.edition, v.activationRegion?.name].filter(Boolean).join(" · ") || v.sku}
+                  {" — "}
+                  {formatMoney(v.price, v.currency)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )
       )}
 
       <div className="flex items-baseline gap-3">

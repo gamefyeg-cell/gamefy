@@ -339,7 +339,13 @@ model ProductVariant {
 
   platform String? // e.g. "PC", "PS5", "Xbox Series X"
   edition  String? // e.g. "Standard", "Deluxe"
-  sku      String  @unique
+  /// Free text on purpose, same reasoning as edition/platform above — plan
+  /// lengths vary too much across subscription products (weeks, months,
+  /// "Lifetime") to force into an enum. Two+ variants under one product
+  /// that only differ by this field render as a plan picker on the
+  /// storefront instead of a generic dropdown (see ProductBuyBox).
+  durationLabel String? // e.g. "1 Month", "3 Months", "1 Year", "Lifetime"
+  sku           String  @unique
 
   price    Float // PG: Decimal @db.Decimal(12,2)
   cost     Float? // PG: Decimal @db.Decimal(12,2) — supplier cost, for markup calculations
