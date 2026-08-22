@@ -195,7 +195,7 @@ function CategoryTile({ category }: { category: { slug: string; name: string; ic
   return (
     <Link
       href={`/categories/${category.slug}`}
-      className="card card-hover group relative aspect-square overflow-hidden flex items-end p-4"
+      className="card card-hover group relative aspect-video overflow-hidden flex items-end p-4"
     >
       {category.bannerUrl ? (
         <>
