@@ -22,6 +22,7 @@ const productSelect = {
   title: true,
   type: true,
   categoryId: true,
+  coverUrl: true,
   images: true,
   variants: { where: { active: true }, select: { price: true, currency: true } },
 };
@@ -32,6 +33,7 @@ type GridProduct = {
   title: string;
   type: string;
   categoryId: string;
+  coverUrl: string | null;
   images: string;
   variants: { price: number; currency: string }[];
 };
@@ -74,7 +76,7 @@ async function HeroSlider({ block }: { block: Block }) {
   // feature a handful of real products (preferring ones with real cover
   // art) in a tilted poster fan alongside the admin's headline/CTA.
   let fanProducts = await prisma.product.findMany({
-    where: { active: true, images: { not: "[]" } },
+    where: { active: true, OR: [{ coverUrl: { not: null } }, { images: { not: "[]" } }] },
     orderBy: { createdAt: "desc" },
     take: 5,
     select: productSelect,

@@ -12,6 +12,7 @@ import {
 import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/currencies";
 import ActivationRegionSelect from "@/components/admin/ActivationRegionSelect";
 import ImageUploader from "@/components/admin/ImageUploader";
+import SingleImageUploader from "@/components/admin/SingleImageUploader";
 import RichTextArea from "@/components/admin/RichTextArea";
 
 export default async function AdminProductsPage() {
@@ -120,9 +121,14 @@ export default async function AdminProductsPage() {
                 <span>2. Media</span>
               </div>
               <div>
+                <label className="label">Cover (box art)</label>
+                <SingleImageUploader name="coverUrl" portrait />
+                <p className="hint">Portrait box art (roughly 2:3, like a game case) — this is what shows on cards and listings across the site. Optional: leave blank and the first image below is used instead.</p>
+              </div>
+              <div>
                 <label className="label">Images</label>
                 <ImageUploader name="images" />
-                <p className="hint">Upload one or more photos — the first becomes the cover shown on cards and search. One photo is fine.</p>
+                <p className="hint">The landscape gallery on the product page — screenshots, key art, wide shots. One photo is fine.</p>
               </div>
               <div>
                 <label className="label">YouTube trailer (optional)</label>

@@ -17,6 +17,7 @@ interface CardProduct {
   slug: string;
   title: string;
   type: string;
+  coverUrl?: string | null;
   images: string;
   variants: CardVariant[];
 }
@@ -52,7 +53,9 @@ export default function ProductCard({
   discount?: { name: string; amount: number } | null;
 }) {
   const images = parseStringArray(product.images);
-  const cover = images[0];
+  // Prefer the dedicated portrait cover; fall back to the first gallery
+  // image for products that predate the coverUrl field.
+  const cover = product.coverUrl || images[0];
   const cheapest = product.variants.length
     ? product.variants.reduce((min, v) => (v.price < min.price ? v : min))
     : null;

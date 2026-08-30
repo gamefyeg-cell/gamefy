@@ -62,7 +62,7 @@ export default async function CheckoutPage({
         currency: variant.currency,
         discountAmount: match?.amount ?? 0,
         discountName: match?.discount.name ?? null,
-        cover: parseStringArray(variant.product.images)[0] ?? null,
+        cover: variant.product.coverUrl || parseStringArray(variant.product.images)[0] || null,
       };
     })
     .filter((l): l is NonNullable<typeof l> => l !== null);

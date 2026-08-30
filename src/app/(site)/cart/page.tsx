@@ -58,7 +58,7 @@ export default async function CartPage() {
     const unit = Math.max(0, variant!.price - (match?.amount ?? 0));
     subtotal += variant!.price * line.qty;
     savings += (match?.amount ?? 0) * line.qty;
-    const cover = parseStringArray(variant!.product.images)[0];
+    const cover = variant!.product.coverUrl || parseStringArray(variant!.product.images)[0];
     return { line, variant: variant!, match, unit, cover };
   });
 

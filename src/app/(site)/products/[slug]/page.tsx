@@ -37,7 +37,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       where: { active: true, categoryId: product.categoryId, id: { not: product.id } },
       orderBy: { popularityScore: "desc" },
       take: 6,
-      select: { id: true, slug: true, title: true, type: true, images: true, categoryId: true, variants: { select: { price: true, currency: true } } },
+      select: { id: true, slug: true, title: true, type: true, coverUrl: true, images: true, categoryId: true, variants: { select: { price: true, currency: true } } },
     }),
   ]);
   const collectionIds = memberships.map((m) => m.collectionId);

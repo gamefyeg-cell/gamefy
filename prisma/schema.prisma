@@ -27,7 +27,12 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // Runtime queries go through the Supavisor transaction pooler (port 6543).
   url      = env("DATABASE_URL")
+  // Migrations / introspection need a direct, non-pooled connection
+  // (port 5432) — PgBouncer can't run the DDL / advisory locks Prisma
+  // Migrate uses. Must be set (see .env / Vercel env) alongside DATABASE_URL.
+  directUrl = env("DIRECT_URL")
 }
 
 // ----------------------------------------------------------------------------
@@ -259,7 +264,13 @@ model Product {
   platform  String? // free-text platform label at the product level; variants can override
   tags      String  @default("[]") // PG: String[] — JSON string array
 
-  images         String  @default("[]") // PG: String[] — JSON array of URLs; first = primary/cover
+  /// Portrait box-art / cover (aspect ~2:3) shown on product cards and
+  /// listings across the storefront. Deliberately separate from `images`
+  /// below, which is the landscape (16:9) gallery on the product page —
+  /// game covers are a different shape than screenshots and one field
+  /// can't frame both well. Falls back to images[0] when unset.
+  coverUrl       String?
+  images         String  @default("[]") // PG: String[] — JSON array of URLs; landscape gallery on the product page
   /// Optional YouTube trailer/showcase. Admin pastes any normal YouTube
   /// URL (watch/share/shorts link); it's normalized down to just the
   /// 11-char video id before saving, so the storefront can build a clean

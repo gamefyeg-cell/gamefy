@@ -3,22 +3,28 @@
 import { useRef, useState } from "react";
 
 /// Single-image variant of ImageUploader — for fields that hold one URL
-/// string (category photo, homepage hero/banner image) rather than a JSON
-/// array of many.
+/// string (product cover, category photo, homepage hero/banner image)
+/// rather than a JSON array of many. Accepts either an uploaded file or a
+/// pasted image URL.
 export default function SingleImageUploader({
   name,
   initialUrl,
   onChange,
+  portrait = false,
 }: {
   name: string;
   initialUrl?: string | null;
   /// Fires whenever the uploaded/removed URL changes — for a parent that
   /// needs the value too (e.g. building a composite JSON config).
   onChange?: (url: string | null) => void;
+  /// Frame the preview as portrait (~2:3, for box-art covers) instead of
+  /// the default landscape thumbnail.
+  portrait?: boolean;
 }) {
   const [url, setUrlState] = useState<string | null>(initialUrl ?? null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pastedUrl, setPastedUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function setUrl(next: string | null) {
@@ -52,7 +58,11 @@ export default function SingleImageUploader({
       {url && (
         <div className="relative w-fit">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt="" className="w-32 h-20 object-cover rounded-lg border border-border" />
+          <img
+            src={url}
+            alt=""
+            className={`${portrait ? "w-24 h-36" : "w-32 h-20"} object-cover rounded-lg border border-border`}
+          />
           <button
             type="button"
             onClick={() => setUrl(null)}
@@ -73,6 +83,27 @@ export default function SingleImageUploader({
           className="text-xs text-slate-400 file:btn-secondary file:!py-1.5 file:!px-3 file:mr-3 file:border-0"
         />
         {uploading && <span className="text-xs text-slate-500">Uploading…</span>}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          value={pastedUrl}
+          onChange={(e) => setPastedUrl(e.target.value)}
+          placeholder="…or paste an image URL"
+          className="input !py-1.5 text-xs"
+        />
+        <button
+          type="button"
+          className="btn-secondary !px-3 !py-1.5 text-xs"
+          onClick={() => {
+            const next = pastedUrl.trim();
+            if (!next) return;
+            setUrl(next);
+            setPastedUrl("");
+          }}
+        >
+          Add
+        </button>
       </div>
 
       {error && <p className="text-danger text-xs">{error}</p>}

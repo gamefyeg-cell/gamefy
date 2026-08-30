@@ -68,6 +68,7 @@ function productFieldsFrom(formData: FormData) {
     publisher: String(formData.get("publisher") ?? "") || null,
     platform: String(formData.get("platform") ?? "") || null,
     tags: csvToJsonArray(String(formData.get("tags") ?? "")),
+    coverUrl: String(formData.get("coverUrl") ?? "") || null,
     images: parseImagesField(String(formData.get("images") ?? "[]")),
     videoUrl: parseYoutubeId(String(formData.get("videoUrl") ?? "")),
     seoTitle: String(formData.get("seoTitle") ?? "") || null,

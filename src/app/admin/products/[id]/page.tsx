@@ -8,6 +8,7 @@ import { parseStringArray } from "@/lib/json";
 import { formatMoney } from "@/lib/format";
 import ActivationRegionSelect from "@/components/admin/ActivationRegionSelect";
 import ImageUploader from "@/components/admin/ImageUploader";
+import SingleImageUploader from "@/components/admin/SingleImageUploader";
 import RichTextArea from "@/components/admin/RichTextArea";
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -85,7 +86,12 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           <input name="tags" defaultValue={parseStringArray(product.tags).join(", ")} className="input" />
         </div>
         <div className="md:col-span-2">
-          <label className="label">Images (first = cover — multiple supported, one is fine too)</label>
+          <label className="label">Cover (box art)</label>
+          <SingleImageUploader name="coverUrl" initialUrl={product.coverUrl} portrait />
+          <p className="text-xs text-slate-600 mt-1">Portrait box art (~2:3) shown on cards and listings. Optional — falls back to the first image below when blank.</p>
+        </div>
+        <div className="md:col-span-2">
+          <label className="label">Images — landscape gallery on the product page (one is fine too)</label>
           <ImageUploader name="images" initialUrls={parseStringArray(product.images)} />
         </div>
         <div className="md:col-span-2">

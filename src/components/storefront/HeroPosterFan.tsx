@@ -8,6 +8,7 @@ interface FanProduct {
   slug: string;
   title: string;
   type: string;
+  coverUrl?: string | null;
   images: string;
   variants: { price: number; currency: string }[];
 }
