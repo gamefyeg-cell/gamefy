@@ -10,6 +10,8 @@ import { trackProductEvent } from "@/lib/analytics";
 import ProductBuyBox from "@/components/storefront/ProductBuyBox";
 import ProductGallery from "@/components/storefront/ProductGallery";
 import ProductCard from "@/components/storefront/ProductCard";
+import HowItWorks from "@/components/storefront/HowItWorks";
+import ProductFaq from "@/components/storefront/ProductFaq";
 import Reveal from "@/components/storefront/Reveal";
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -68,8 +70,18 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   const typeWord = product.type === "GAME" ? "game" : product.type === "SUBSCRIPTION" ? "subscription" : "product";
 
+  const maxWarranty = Math.max(0, ...product.variants.map((v) => v.warrantyDays ?? 0)) || null;
+  const regionNames = Array.from(
+    new Set(product.variants.map((v) => v.activationRegion?.name).filter((n): n is string => Boolean(n)))
+  );
+  const regionText = regionNames.length ? regionNames.join(" · ") : null;
+  const hasAccountVariant = product.variants.some(
+    (v) => v.saleMode === "FULL_ACCOUNT" || v.saleMode === "SHARED_ACCOUNT"
+  );
+  const soldCount = product.purchaseCount;
+
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-12 pb-24 lg:pb-0">
       <div>
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-1.5 text-xs text-slate-500">
@@ -92,13 +104,16 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <h1 className="font-heading text-2xl font-semibold leading-tight tracking-tight text-white md:text-[30px]">
             {product.title}
           </h1>
-          {(product.publisher || platformText) && (
-            <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-slate-400">
-              {product.publisher && <span>{product.publisher}</span>}
-              {product.publisher && platformText && <span className="text-slate-700">•</span>}
-              {platformText && <span>{platformText}</span>}
-            </p>
-          )}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-slate-400">
+            {product.publisher && <span>{product.publisher}</span>}
+            {product.publisher && platformText && <span className="text-slate-700">•</span>}
+            {platformText && <span>{platformText}</span>}
+            {(product.publisher || platformText) && <span className="text-slate-700">•</span>}
+            <span className="inline-flex items-center gap-1 text-accent-soft">⚡ Instant after verification</span>
+            {soldCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-slate-500">· {soldCount.toLocaleString()} sold</span>
+            )}
+          </div>
         </div>
 
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
@@ -126,6 +141,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 </section>
               </Reveal>
             )}
+
+            <Reveal>
+              <HowItWorks />
+            </Reveal>
+
+            <Reveal>
+              <ProductFaq warrantyDays={maxWarranty} regionText={regionText} hasAccountVariant={hasAccountVariant} />
+            </Reveal>
           </div>
 
           <div>

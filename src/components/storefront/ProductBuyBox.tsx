@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { formatMoney } from "@/lib/format";
-import { labelFor, SALE_MODES, REGION_LOCK_TYPES, ACCOUNT_ACCESS_LEVELS, PLATFORMS } from "@/lib/enums";
+import { labelFor, REGION_LOCK_TYPES, ACCOUNT_ACCESS_LEVELS, PLATFORMS } from "@/lib/enums";
 import { addToCartAction } from "@/lib/actions/site";
 import { springs, tapFeedback } from "@/lib/motion";
-import { TRUST_SIGNALS } from "@/lib/trust-signals";
 
 interface Variant {
   id: string;
@@ -18,6 +18,7 @@ interface Variant {
   price: number;
   currency: string;
   saleMode: string;
+  deliveryMethod?: string | null;
   stockMode: string;
   stockQty: number | null;
   regionLockType: string;
@@ -38,25 +39,40 @@ interface CustomField {
   label: string;
   type: string;
   required: boolean;
-  options: string; // JSON array
+  options: string;
 }
-
-const SALE_MODE_TAB_LABEL: Record<string, string> = {
-  KEY: "Buy as Key",
-  FULL_ACCOUNT: "Buy as Account",
-  SHARED_ACCOUNT: "Buy as Shared Account",
-  TOPUP_DIRECT: "Top Up",
-};
 
 const PLATFORM_ICON: Record<string, string> = {
   PC: "🖥️",
   PlayStation: "🎮",
   Xbox: "🎮",
-  "Nintendo Switch": "🎮",
+  "Nintendo Switch": "🕹️",
   Mobile: "📱",
   Mac: "🖥️",
   Linux: "🐧",
+  "Cross-Platform": "🌐",
 };
+const SALE_MODE_SHORT: Record<string, string> = {
+  KEY: "Key",
+  FULL_ACCOUNT: "Full account",
+  SHARED_ACCOUNT: "Shared account",
+  TOPUP_DIRECT: "Top-up",
+};
+
+function deliveryLine(v: Variant): { icon: string; text: string } {
+  const d = v.deliveryMethod ?? "";
+  if (d === "AUTO_KEY" || d === "SUBSCRIPTION_CODE" || v.saleMode === "KEY")
+    return { icon: "⚡", text: "Instant delivery — a code you redeem yourself" };
+  if (d === "CREDENTIAL_DELIVERY" || d === "SUBSCRIPTION_SHARED_ACCOUNT" || v.saleMode === "FULL_ACCOUNT" || v.saleMode === "SHARED_ACCOUNT")
+    return { icon: "🔐", text: "Login details delivered the moment we verify" };
+  if (d === "TOPUP_API" || v.saleMode === "TOPUP_DIRECT")
+    return { icon: "🎮", text: "Credited straight to your game account" };
+  return { icon: "👤", text: "Delivered by our team right after verification" };
+}
+
+function regionIcon(kind?: string) {
+  return kind === "GLOBAL" ? "🌍" : kind === "ZONE" ? "🗺️" : "📍";
+}
 
 export default function ProductBuyBox({
   variants,
@@ -66,69 +82,23 @@ export default function ProductBuyBox({
   customFields: CustomField[];
 }) {
   const router = useRouter();
-  const saleModes = useMemo(() => Array.from(new Set(variants.map((v) => v.saleMode))), [variants]);
-  const [activeSaleMode, setActiveSaleMode] = useState(saleModes[0]);
-  const variantsForMode = useMemo(
-    () => variants.filter((v) => v.saleMode === activeSaleMode),
-    [variants, activeSaleMode]
-  );
-
-  // One product can be sold for several platforms (e.g. a game on PC *and*
-  // PlayStation) — one listing, one cover/description, but independently
-  // priced and stocked variants. When every variant in this sale mode
-  // carries a platform and there's more than one, surface it as its own
-  // picker instead of burying it in the generic "Choose option" dropdown.
-  const platforms = useMemo(() => {
-    const list = Array.from(new Set(variantsForMode.map((v) => v.platform).filter(Boolean))) as string[];
-    return list.length > 1 && variantsForMode.every((v) => v.platform) ? list : [];
-  }, [variantsForMode]);
-  const [activePlatform, setActivePlatform] = useState<string | null>(platforms[0] ?? null);
-
-  const scopedVariants = useMemo(
-    () => (platforms.length ? variantsForMode.filter((v) => v.platform === activePlatform) : variantsForMode),
-    [platforms, variantsForMode, activePlatform]
-  );
-
-  // If every variant in scope has its own distinct duration label
-  // (e.g. "1 Month" / "3 Months" / "1 Year") and nothing else differs, show
-  // it as a proper plan picker instead of the generic "Choose option"
-  // dropdown — reads like real subscription pricing.
-  const durations = useMemo(
-    () => Array.from(new Set(scopedVariants.map((v) => v.durationLabel).filter(Boolean))),
-    [scopedVariants]
-  );
-  const usesDurationPicker = durations.length > 1 && durations.length === scopedVariants.length;
-  const [variantId, setVariantId] = useState(scopedVariants[0]?.id ?? "");
+  const usable = useMemo(() => variants.filter((v) => v.active), [variants]);
+  const [variantId, setVariantId] = useState(usable[0]?.id ?? "");
   const [qty, setQty] = useState(1);
   const [pending, setPending] = useState(false);
   const [added, setAdded] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  const variant = variants.find((v) => v.id === variantId) ?? scopedVariants[0];
+  const variant = usable.find((v) => v.id === variantId) ?? usable[0];
 
-  function switchMode(mode: string) {
-    setActiveSaleMode(mode);
-    const modeVariants = variants.filter((v) => v.saleMode === mode);
-    const modePlatforms = Array.from(new Set(modeVariants.map((v) => v.platform).filter(Boolean))) as string[];
-    const usePlatformPicker = modePlatforms.length > 1 && modeVariants.every((v) => v.platform);
-    const nextPlatform = usePlatformPicker ? modePlatforms[0] : null;
-    setActivePlatform(nextPlatform);
-    const first = usePlatformPicker ? modeVariants.find((v) => v.platform === nextPlatform) : modeVariants[0];
-    setVariantId(first?.id ?? "");
-    setAdded(false);
-  }
-
-  function selectPlatform(p: string) {
-    setActivePlatform(p);
-    setVariantId(variantsForMode.find((v) => v.platform === p)?.id ?? "");
-    setAdded(false);
-  }
-
-  const outOfStock =
-    variant && variant.stockMode === "MANUAL" && (variant.stockQty ?? 0) <= 0;
+  const stockLeft = variant && variant.stockMode === "MANUAL" ? variant.stockQty ?? 0 : null;
+  const outOfStock = stockLeft !== null && stockLeft <= 0;
+  const low = stockLeft !== null && stockLeft > 0 && stockLeft <= 5;
 
   async function handleAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!variant) return;
+    if (!variant || outOfStock) return;
     setPending(true);
     const fd = new FormData(e.currentTarget);
     fd.set("variantId", variant.id);
@@ -140,281 +110,319 @@ export default function ProductBuyBox({
   }
 
   if (!variant) {
-    return <p className="text-slate-500">No purchasable variants yet.</p>;
+    return (
+      <div className="rounded-2xl border border-white/10 bg-surface p-6 text-sm text-slate-500">
+        No purchase options yet.
+      </div>
+    );
   }
 
+  const net = variant.price - (variant.discount?.amount ?? 0);
+  const save = variant.discount?.amount ?? 0;
+  const pct = save > 0 ? Math.round((save / variant.price) * 100) : 0;
+
+  function primary(v: Variant) {
+    if (v.platform) return `${PLATFORM_ICON[v.platform] ?? "🎮"} ${labelFor(PLATFORMS, v.platform)}`;
+    if (v.durationLabel) return `⏳ ${v.durationLabel}`;
+    return SALE_MODE_SHORT[v.saleMode] ?? v.saleMode;
+  }
+  function secondary(v: Variant) {
+    return [v.platform && v.durationLabel ? v.durationLabel : null, v.edition, v.platform ? SALE_MODE_SHORT[v.saleMode] : null]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  const cta = outOfStock
+    ? variant.outOfStockMessage || "Out of stock"
+    : pending
+      ? "Adding…"
+      : added
+        ? "Added ✓  ·  add another"
+        : "⚡  Add to cart";
+
+  const del = deliveryLine(variant);
+
   return (
-    <div className="card p-5 flex flex-col gap-4 relative overflow-hidden">
-      {/* Thin gradient accent along the top edge — the same purple→gold
-          language as the hero CTA and poster-card frames, so the buy box
-          reads as the page's premium focal point rather than a plain form. */}
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-accent via-accent-soft to-gold" />
+    <div id="buybox" className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-surface to-bg shadow-[0_20px_60px_-20px_rgba(0,0,0,0.7)]">
+      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-accent via-accent-soft to-gold" />
 
-      {saleModes.length > 1 && (
-        <div className="flex gap-1 border-b border-border pb-3">
-          {saleModes.map((mode) => (
-            <motion.button
-              key={mode}
-              type="button"
-              onClick={() => switchMode(mode)}
-              whileTap={tapFeedback}
-              className={`relative btn !px-3 !py-1.5 text-xs ${activeSaleMode === mode ? "text-white" : "bg-surface2 text-slate-300 border border-border"}`}
+      <div className="flex flex-col gap-5 p-5 sm:p-6">
+        {/* Option picker */}
+        {usable.length > 1 && (
+          <div className="flex flex-col gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Choose your version</span>
+            <div className="flex flex-col gap-2">
+              {usable.map((v) => {
+                const selected = v.id === variantId;
+                const vOut = v.stockMode === "MANUAL" && (v.stockQty ?? 0) <= 0;
+                const vNet = v.price - (v.discount?.amount ?? 0);
+                return (
+                  <motion.button
+                    key={v.id}
+                    type="button"
+                    whileTap={tapFeedback}
+                    onClick={() => {
+                      setVariantId(v.id);
+                      setAdded(false);
+                    }}
+                    className={`relative flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors ${
+                      selected
+                        ? "border-accent/70 bg-accent/[0.07]"
+                        : "border-white/10 bg-white/[0.02] hover:border-white/25"
+                    } ${vOut ? "opacity-45" : ""}`}
+                  >
+                    {selected && (
+                      <motion.span
+                        layoutId="optionGlow"
+                        transition={springs.snappy}
+                        className="pointer-events-none absolute -inset-px rounded-xl ring-1 ring-accent/60"
+                      />
+                    )}
+                    <span
+                      className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border ${
+                        selected ? "border-accent bg-accent" : "border-slate-500"
+                      }`}
+                    >
+                      {selected && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-white">{primary(v)}</span>
+                      <span className="block truncate text-xs text-slate-500">
+                        {secondary(v) || v.sku}
+                        {v.activationRegion ? ` · ${v.activationRegion.name}` : ""}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="block text-sm font-bold text-gold">{formatMoney(vNet, v.currency)}</span>
+                      {v.discount && (
+                        <span className="block text-[11px] text-slate-600 line-through">{formatMoney(v.price, v.currency)}</span>
+                      )}
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Price */}
+        <div>
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              key={`${variant.id}-${net}`}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={springs.smooth}
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-1"
             >
-              {activeSaleMode === mode && (
-                <motion.span
-                  layoutId="saleModeTabPill"
-                  transition={springs.snappy}
-                  className="absolute inset-0 bg-accent rounded-lg -z-10"
-                />
+              <span className="font-heading text-[40px] font-bold leading-none text-gold drop-shadow-[0_0_22px_rgba(237,175,89,0.28)]">
+                {formatMoney(net, variant.currency)}
+              </span>
+              {save > 0 && (
+                <>
+                  <span className="text-lg text-slate-600 line-through">{formatMoney(variant.price, variant.currency)}</span>
+                  <span className="rounded-md bg-danger/15 px-2 py-0.5 text-xs font-bold text-danger">−{pct}%</span>
+                </>
               )}
-              {SALE_MODE_TAB_LABEL[mode] ?? labelFor(SALE_MODES, mode)}
-            </motion.button>
-          ))}
-        </div>
-      )}
-
-      {platforms.length > 0 && (
-        <div>
-          <label className="label">Choose platform</label>
-          <div className="flex flex-wrap gap-2">
-            {platforms.map((p) => (
-              <motion.button
-                key={p}
-                type="button"
-                onClick={() => selectPlatform(p)}
-                whileTap={tapFeedback}
-                className={`relative btn !px-3 !py-1.5 text-xs ${
-                  activePlatform === p ? "text-white" : "bg-surface2 text-slate-300 border border-border"
-                }`}
-              >
-                {activePlatform === p && (
-                  <motion.span
-                    layoutId="platformTabPill"
-                    transition={springs.snappy}
-                    className="absolute inset-0 bg-accent rounded-lg -z-10"
-                  />
-                )}
-                {PLATFORM_ICON[p] ? `${PLATFORM_ICON[p]} ` : ""}
-                {labelFor(PLATFORMS, p)}
-              </motion.button>
-            ))}
+            </motion.div>
+          </AnimatePresence>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            {save > 0 && (
+              <span className="text-success">You save {formatMoney(save, variant.currency)}{variant.discount?.name ? ` · ${variant.discount.name}` : ""}</span>
+            )}
+            {stockLeft === null ? (
+              <span className="text-slate-500">● In stock</span>
+            ) : outOfStock ? (
+              <span className="text-danger">● {variant.outOfStockMessage || "Out of stock"}</span>
+            ) : low ? (
+              <span className="font-medium text-warn">🔥 Only {stockLeft} left</span>
+            ) : (
+              <span className="text-slate-500">● {stockLeft} in stock</span>
+            )}
           </div>
         </div>
-      )}
 
-      {usesDurationPicker ? (
-        <div>
-          <label className="label">Choose plan</label>
-          <div className="flex flex-wrap gap-2">
-            {scopedVariants.map((v) => (
-              <motion.button
-                key={v.id}
-                type="button"
-                onClick={() => {
-                  setVariantId(v.id);
-                  setAdded(false);
-                }}
-                whileTap={tapFeedback}
-                className={`relative btn !px-3 !py-2 flex-col !items-start gap-0.5 ${
-                  variantId === v.id ? "text-white" : "bg-surface2 text-slate-300 border border-border"
-                }`}
-              >
-                {variantId === v.id && (
-                  <motion.span
-                    layoutId="durationTabPill"
-                    transition={springs.snappy}
-                    className="absolute inset-0 bg-accent rounded-lg -z-10"
-                  />
-                )}
-                <span className="relative text-xs font-semibold">{v.durationLabel}</span>
-                <span className="relative text-[10px] opacity-80">{formatMoney(v.price, v.currency)}</span>
-              </motion.button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        scopedVariants.length > 1 && (
-          <div>
-            <label className="label">Choose option</label>
-            <select
-              className="input"
-              value={variantId}
-              onChange={(e) => {
-                setVariantId(e.target.value);
-                setAdded(false);
-              }}
-            >
-              {scopedVariants.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {[v.durationLabel, platforms.length ? null : v.platform, v.edition, v.activationRegion?.name]
-                    .filter(Boolean)
-                    .join(" · ") || v.sku}
-                  {" — "}
-                  {formatMoney(v.price, v.currency)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )
-      )}
-
-      <div className="flex items-baseline gap-3">
-        <div className="font-heading font-bold text-4xl text-gold drop-shadow-[0_0_18px_rgba(237,175,89,0.35)]">
-          {formatMoney(variant.price - (variant.discount?.amount ?? 0), variant.currency)}
-        </div>
-        {variant.discount && (
-          <div className="text-lg text-slate-500 line-through">{formatMoney(variant.price, variant.currency)}</div>
-        )}
-      </div>
-      {variant.discount && (
-        <span className="badge bg-danger/10 text-danger border border-danger/30 self-start">
-          🏷 {variant.discount.name}
-        </span>
-      )}
-
-      <div className="flex flex-wrap gap-2 text-xs">
-        {variant.activationRegion && (
-          <span className="badge bg-accent/10 text-accent-soft border border-accent/30">
-            {variant.activationRegion.kind === "GLOBAL" ? "🌍" : variant.activationRegion.kind === "ZONE" ? "🗺️" : "📍"}{" "}
-            Activates in: {variant.activationRegion.name}
-          </span>
-        )}
-        {variant.regionLockType !== "NONE" && (
-          <span className="badge bg-warn/10 text-warn border border-warn/30">
-            {labelFor(REGION_LOCK_TYPES, variant.regionLockType)}
-          </span>
-        )}
-        {variant.warrantyDays != null && (
-          <span className="badge bg-success/10 text-success border border-success/30">
-            {variant.warrantyDays}-day warranty
-          </span>
-        )}
-        {variant.accountAccessLevel && (
-          <span className="badge bg-surface2 border border-border text-slate-300">
-            {labelFor(ACCOUNT_ACCESS_LEVELS, variant.accountAccessLevel)}
-          </span>
-        )}
-        {variant.stockMode === "MANUAL" && (
-          <span className={`badge border ${outOfStock ? "text-danger border-danger/40 bg-danger/10" : "text-slate-300 border-border bg-surface2"}`}>
-            {outOfStock ? variant.outOfStockMessage || "Out of stock" : `${variant.stockQty} in stock`}
-          </span>
-        )}
-        {variant.stockMode === "UNLIMITED" && (
-          <span className="badge bg-surface2 border border-border text-slate-300">In stock</span>
-        )}
-      </div>
-
-      {variant.activationInstructions && (
-        <p className="text-xs text-slate-400">
-          <span className="text-slate-300 font-medium">Activation: </span>
-          {variant.activationInstructions}
-        </p>
-      )}
-      {variant.redemptionInstructions && (
-        <p className="text-xs text-slate-400">
-          <span className="text-slate-300 font-medium">How to redeem: </span>
-          {variant.redemptionInstructions}
-        </p>
-      )}
-      {variant.accountDeliveryNote && (
-        <p className="text-xs text-slate-400">
-          <span className="text-slate-300 font-medium">Account note: </span>
-          {variant.accountDeliveryNote}
-        </p>
-      )}
-
-      <form onSubmit={handleAdd} className="flex flex-col gap-3">
-        {customFields.map((field) => {
-          const options: string[] = (() => {
-            try {
-              return JSON.parse(field.options);
-            } catch {
-              return [];
-            }
-          })();
-          return (
-            <div key={field.id}>
-              <label className="label">
-                {field.label}
-                {field.required && <span className="text-danger"> *</span>}
-              </label>
-              {field.type === "SELECT" ? (
-                <select name={`cf_${field.fieldKey}`} required={field.required} className="input">
-                  {options.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
-              ) : field.type === "CHECKBOX" ? (
-                <input type="checkbox" name={`cf_${field.fieldKey}`} className="h-4 w-4" />
-              ) : (
-                <input
-                  type={field.type === "NUMBER" ? "number" : field.type === "EMAIL" ? "email" : "text"}
-                  name={`cf_${field.fieldKey}`}
-                  required={field.required}
-                  className="input"
-                />
+        {/* What you get */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">What you get</span>
+          <ul className="mt-2.5 flex flex-col gap-2 text-[13px] text-slate-300">
+            <li className="flex gap-2.5">
+              <span className="shrink-0">{del.icon}</span>
+              <span>{del.text}</span>
+            </li>
+            {variant.activationRegion && (
+              <li className="flex gap-2.5">
+                <span className="shrink-0">{regionIcon(variant.activationRegion.kind)}</span>
+                <span>
+                  Works in <span className="text-white">{variant.activationRegion.name}</span>
+                  {variant.regionLockType !== "NONE" && (
+                    <span className="text-slate-500"> · {labelFor(REGION_LOCK_TYPES, variant.regionLockType)}</span>
+                  )}
+                </span>
+              </li>
+            )}
+            {variant.warrantyDays != null && (
+              <li className="flex gap-2.5">
+                <span className="shrink-0">🛡️</span>
+                <span>
+                  <span className="text-white">{variant.warrantyDays}-day</span> replacement warranty
+                </span>
+              </li>
+            )}
+            {variant.accountAccessLevel && (
+              <li className="flex gap-2.5">
+                <span className="shrink-0">🔑</span>
+                <span>{labelFor(ACCOUNT_ACCESS_LEVELS, variant.accountAccessLevel)}</span>
+              </li>
+            )}
+            <li className="flex gap-2.5">
+              <span className="shrink-0">🔒</span>
+              <span>One-time encrypted reveal — every access is logged</span>
+            </li>
+          </ul>
+          {(variant.redemptionInstructions || variant.activationInstructions || variant.accountDeliveryNote) && (
+            <div className="mt-3 flex flex-col gap-1.5 border-t border-white/10 pt-3 text-xs text-slate-400">
+              {variant.redemptionInstructions && (
+                <p>
+                  <span className="font-medium text-slate-300">How to redeem: </span>
+                  {variant.redemptionInstructions}
+                </p>
+              )}
+              {variant.activationInstructions && (
+                <p>
+                  <span className="font-medium text-slate-300">Activation: </span>
+                  {variant.activationInstructions}
+                </p>
+              )}
+              {variant.accountDeliveryNote && (
+                <p>
+                  <span className="font-medium text-slate-300">Note: </span>
+                  {variant.accountDeliveryNote}
+                </p>
               )}
             </div>
-          );
-        })}
-
-        <div className="flex items-center gap-3">
-          <input
-            type="number"
-            min={1}
-            value={qty}
-            onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
-            className="input !w-20"
-          />
-          <motion.button
-            type="submit"
-            disabled={pending || outOfStock}
-            whileTap={tapFeedback}
-            animate={added ? { scale: [1, 1.05, 1] } : {}}
-            transition={springs.snappy}
-            className="btn-cta flex-1 !py-3 text-base"
-          >
-            {outOfStock
-              ? variant.outOfStockMessage || "Out of stock"
-              : pending
-                ? "Adding…"
-                : added
-                  ? "Added ✓ — add more"
-                  : "⚡ Add to Cart"}
-          </motion.button>
+          )}
         </div>
-      </form>
 
-      <div className="flex flex-col gap-2.5 border-t border-border pt-4">
-        {TRUST_SIGNALS.map((t) => (
-          <div key={t.title} className="flex items-center gap-2.5">
-            <span className="flex items-center justify-center w-7 h-7 rounded-full border border-accent/50 bg-accent/10 text-xs shrink-0">
-              {t.icon}
-            </span>
-            <span className="text-xs text-slate-400">
-              <span className="text-slate-200 font-medium">{t.title}</span> · {t.subtitle}
-            </span>
+        {/* Buy */}
+        <form id="buybox-form" onSubmit={handleAdd} className="flex flex-col gap-3">
+          {customFields.map((field) => {
+            let options: string[] = [];
+            try {
+              const parsed = JSON.parse(field.options);
+              if (Array.isArray(parsed)) options = parsed;
+            } catch {
+              /* ignore */
+            }
+            return (
+              <div key={field.id}>
+                <label className="mb-1 block text-xs font-medium text-slate-400">
+                  {field.label}
+                  {field.required && <span className="text-danger"> *</span>}
+                </label>
+                {field.type === "SELECT" ? (
+                  <select name={`cf_${field.fieldKey}`} required={field.required} className="input">
+                    {options.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </select>
+                ) : field.type === "CHECKBOX" ? (
+                  <input type="checkbox" name={`cf_${field.fieldKey}`} className="h-4 w-4" />
+                ) : (
+                  <input
+                    type={field.type === "NUMBER" ? "number" : field.type === "EMAIL" ? "email" : "text"}
+                    name={`cf_${field.fieldKey}`}
+                    required={field.required}
+                    className="input"
+                  />
+                )}
+              </div>
+            );
+          })}
+
+          <div className="flex items-stretch gap-2.5">
+            <div className="flex items-center rounded-xl border border-white/10 bg-white/[0.02]">
+              <button
+                type="button"
+                onClick={() => setQty((q) => Math.max(1, q - 1))}
+                className="grid h-full w-9 place-items-center text-slate-400 hover:text-white"
+                aria-label="Decrease quantity"
+              >
+                −
+              </button>
+              <span className="w-8 text-center text-sm font-semibold tabular-nums text-white">{qty}</span>
+              <button
+                type="button"
+                onClick={() => setQty((q) => q + 1)}
+                className="grid h-full w-9 place-items-center text-slate-400 hover:text-white"
+                aria-label="Increase quantity"
+              >
+                +
+              </button>
+            </div>
+            <motion.button
+              type="submit"
+              disabled={pending || outOfStock}
+              whileHover={outOfStock ? undefined : { scale: 1.01 }}
+              whileTap={tapFeedback}
+              animate={added ? { scale: [1, 1.04, 1] } : {}}
+              transition={springs.snappy}
+              className="btn-cta flex-1 !py-3.5 text-[15px]"
+            >
+              {cta}
+            </motion.button>
           </div>
-        ))}
+        </form>
+
+        {/* Trust + payment */}
+        <div className="grid grid-cols-3 gap-2 border-t border-white/10 pt-4 text-center text-[11px] text-slate-500">
+          <div>
+            <div className="text-base">⚡</div>
+            Instant after verify
+          </div>
+          <div>
+            <div className="text-base">🛡️</div>
+            Warranty &amp; support
+          </div>
+          <div>
+            <div className="text-base">🔒</div>
+            Encrypted delivery
+          </div>
+        </div>
+        <p className="text-center text-[11px] leading-relaxed text-slate-500">
+          Pay by <span className="text-slate-300">InstaPay or Telda</span>, upload the receipt, and we release your order
+          once the transfer is confirmed — usually within minutes.
+        </p>
       </div>
 
-      {/* How payment actually works here — InstaPay/Telda transfer +
-          screenshot, verified by an admin, no card/gateway involved. */}
-      <div className="flex items-center justify-between text-center gap-1 border-t border-border pt-4 text-[11px] text-slate-500">
-        <div className="flex-1">
-          <div className="text-lg">📲</div>Pay via InstaPay/Telda
-        </div>
-        <div className="text-slate-700">→</div>
-        <div className="flex-1">
-          <div className="text-lg">🧾</div>Upload receipt
-        </div>
-        <div className="text-slate-700">→</div>
-        <div className="flex-1">
-          <div className="text-lg">✅</div>Delivered once verified
-        </div>
-      </div>
+      {/* Mobile pinned buy bar — portalled to <body> so no transformed
+          ancestor (framer-motion Reveal, sticky wrapper) breaks `fixed`. */}
+      {mounted &&
+        createPortal(
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-bg/90 px-4 py-3 backdrop-blur-xl lg:hidden">
+            <div className="mx-auto flex max-w-7xl items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-base font-bold leading-none text-gold">{formatMoney(net, variant.currency)}</div>
+                <div className="mt-0.5 truncate text-[11px] text-slate-500">
+                  {primary(variant)}
+                  {low ? ` · only ${stockLeft} left` : ""}
+                </div>
+              </div>
+              <button
+                type="submit"
+                form="buybox-form"
+                disabled={pending || outOfStock}
+                className="btn-cta shrink-0 !px-6 !py-2.5 text-sm"
+              >
+                {outOfStock ? "Sold out" : added ? "Added ✓" : "Add to cart"}
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
