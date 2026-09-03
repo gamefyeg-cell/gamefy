@@ -1,0 +1,530 @@
+/* ==========================================================================
+   Admin panel theme — independent of the storefront's dark brand palette.
+   Two schemes (light default + dark), toggled per-admin via a data attribute
+   on <html> set by AdminThemeProvider. Everything below is scoped to
+   `.admin-root` so the storefront is never affected.
+   ========================================================================== */
+
+:root[data-admin-theme="light"],
+:root:not([data-admin-theme]) {
+  color-scheme: light;
+  --a-bg: #f4f6f8;
+  --a-panel: #ffffff;
+  --a-panel-2: #eef1f4;
+  --a-panel-3: #e4e8ec;
+  --a-text: #191c22;
+  --a-muted: #58616e;
+  --a-faint: #838c99;
+  --a-border: #e2e6ea;
+  --a-border-strong: #cfd5dc;
+  --a-accent: #8b3fd6;
+  --a-accent-hover: #7830bf;
+  --a-accent-weak: #f2ebfb;
+  --a-on-accent: #ffffff;
+  --a-success: #15803d;
+  --a-success-weak: #e6f5ec;
+  --a-warn: #b45309;
+  --a-warn-weak: #fbf0e2;
+  --a-danger: #d23142;
+  --a-danger-weak: #fcebed;
+  --a-ring: rgba(139, 63, 214, 0.3);
+  --a-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
+  --a-shadow-lg: 0 10px 30px rgba(16, 24, 40, 0.14);
+}
+
+:root[data-admin-theme="dark"] {
+  color-scheme: dark;
+  --a-bg: #0e1015;
+  --a-panel: #161922;
+  --a-panel-2: #1e222c;
+  --a-panel-3: #262b37;
+  --a-text: #e7e9ee;
+  --a-muted: #9aa2b0;
+  --a-faint: #6b7482;
+  --a-border: #242a35;
+  --a-border-strong: #343c49;
+  --a-accent: #a566f0;
+  --a-accent-hover: #b681f3;
+  --a-accent-weak: rgba(165, 102, 240, 0.16);
+  --a-on-accent: #ffffff;
+  --a-success: #37c98a;
+  --a-success-weak: rgba(55, 201, 138, 0.14);
+  --a-warn: #e0a13a;
+  --a-warn-weak: rgba(224, 161, 58, 0.14);
+  --a-danger: #f0616f;
+  --a-danger-weak: rgba(240, 97, 111, 0.14);
+  --a-ring: rgba(165, 102, 240, 0.4);
+  --a-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --a-shadow-lg: 0 12px 34px rgba(0, 0, 0, 0.5);
+}
+
+/* --------------------------------------------------------------------------
+   Base shell
+   -------------------------------------------------------------------------- */
+.admin-root {
+  min-height: 100vh;
+  background: var(--a-bg);
+  color: var(--a-text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.admin-root *,
+.admin-root *::before,
+.admin-root *::after {
+  border-color: var(--a-border);
+}
+.admin-root ::selection {
+  background: var(--a-accent-weak);
+}
+
+/* --------------------------------------------------------------------------
+   Primitives (.a-*) — used by the rebuilt pages
+   -------------------------------------------------------------------------- */
+.a-h1 {
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--a-text);
+}
+.a-h2 {
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--a-text);
+}
+.a-sub {
+  font-size: 0.8125rem;
+  color: var(--a-muted);
+}
+
+.a-card {
+  background: var(--a-panel);
+  border: 1px solid var(--a-border);
+  border-radius: 12px;
+  box-shadow: var(--a-shadow);
+}
+
+.a-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: var(--a-text);
+  margin-bottom: 0.375rem;
+}
+.a-hint {
+  font-size: 0.75rem;
+  color: var(--a-muted);
+  margin-top: 0.375rem;
+}
+.a-req {
+  color: var(--a-danger);
+}
+
+.a-input,
+.a-select,
+.a-textarea {
+  width: 100%;
+  background: var(--a-panel);
+  color: var(--a-text);
+  border: 1px solid var(--a-border-strong);
+  border-radius: 8px;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.875rem;
+  transition: border-color 0.12s, box-shadow 0.12s;
+  appearance: none;
+}
+.a-input::placeholder,
+.a-textarea::placeholder {
+  color: var(--a-faint);
+}
+.a-input:focus,
+.a-select:focus,
+.a-textarea:focus {
+  outline: none;
+  border-color: var(--a-accent);
+  box-shadow: 0 0 0 3px var(--a-ring);
+}
+.a-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23808a97' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.55rem center;
+  padding-right: 2rem;
+}
+.a-textarea {
+  min-height: 5rem;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.a-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+  white-space: nowrap;
+}
+.a-btn:disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.a-btn-primary {
+  background: var(--a-accent);
+  color: var(--a-on-accent);
+}
+.a-btn-primary:hover {
+  background: var(--a-accent-hover);
+}
+.a-btn-ghost {
+  background: var(--a-panel);
+  color: var(--a-text);
+  border-color: var(--a-border-strong);
+}
+.a-btn-ghost:hover {
+  background: var(--a-panel-2);
+}
+.a-btn-danger {
+  background: var(--a-danger-weak);
+  color: var(--a-danger);
+  border-color: color-mix(in srgb, var(--a-danger) 35%, transparent);
+}
+.a-btn-danger:hover {
+  background: color-mix(in srgb, var(--a-danger) 18%, transparent);
+}
+.a-btn-sm {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+}
+
+.a-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid var(--a-border-strong);
+  color: var(--a-muted);
+  background: var(--a-panel-2);
+}
+.a-badge-accent {
+  color: var(--a-accent);
+  background: var(--a-accent-weak);
+  border-color: color-mix(in srgb, var(--a-accent) 30%, transparent);
+}
+.a-badge-success {
+  color: var(--a-success);
+  background: var(--a-success-weak);
+  border-color: color-mix(in srgb, var(--a-success) 30%, transparent);
+}
+.a-badge-warn {
+  color: var(--a-warn);
+  background: var(--a-warn-weak);
+  border-color: color-mix(in srgb, var(--a-warn) 30%, transparent);
+}
+.a-badge-danger {
+  color: var(--a-danger);
+  background: var(--a-danger-weak);
+  border-color: color-mix(in srgb, var(--a-danger) 30%, transparent);
+}
+
+/* Collapsible form section */
+.a-section {
+  border: 1px solid var(--a-border);
+  border-radius: 12px;
+  background: var(--a-panel);
+  overflow: hidden;
+}
+.a-section + .a-section {
+  margin-top: 0.75rem;
+}
+.a-section > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  font-weight: 650;
+  color: var(--a-text);
+  user-select: none;
+}
+.a-section > summary::-webkit-details-marker {
+  display: none;
+}
+.a-section > summary::after {
+  content: "";
+  margin-left: auto;
+  width: 16px;
+  height: 16px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23808a97' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat center;
+  transition: transform 0.15s;
+}
+.a-section[open] > summary::after {
+  transform: rotate(180deg);
+}
+.a-section > summary:hover {
+  background: var(--a-panel-2);
+}
+.a-section-body {
+  padding: 0.25rem 1rem 1.1rem;
+  border-top: 1px solid var(--a-border);
+}
+.a-section-note {
+  font-size: 0.75rem;
+  color: var(--a-muted);
+  font-weight: 400;
+}
+
+/* Row list (tables of products/orders/etc.) */
+.a-list {
+  background: var(--a-panel);
+  border: 1px solid var(--a-border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--a-shadow);
+}
+.a-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.8125rem;
+  color: var(--a-text);
+  border-top: 1px solid var(--a-border);
+}
+.a-list-row:first-child {
+  border-top: none;
+}
+a.a-list-row:hover {
+  background: var(--a-panel-2);
+}
+.a-list-empty {
+  padding: 1.25rem 0.9rem;
+  color: var(--a-muted);
+  font-size: 0.8125rem;
+}
+
+/* Pagination */
+.a-pager {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+.a-pager a,
+.a-pager span {
+  min-width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.5rem;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  border: 1px solid var(--a-border-strong);
+  color: var(--a-text);
+  background: var(--a-panel);
+}
+.a-pager a:hover {
+  background: var(--a-panel-2);
+}
+.a-pager .is-current {
+  background: var(--a-accent);
+  border-color: var(--a-accent);
+  color: var(--a-on-accent);
+  font-weight: 650;
+}
+.a-pager .is-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.a-pager .is-gap {
+  border: none;
+  background: none;
+  color: var(--a-faint);
+}
+
+/* Checkable chip (multi-select platforms etc.) */
+.a-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--a-border-strong);
+  background: var(--a-panel);
+  color: var(--a-muted);
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+.a-chip:hover {
+  border-color: var(--a-accent);
+}
+.a-chip:has(input:checked) {
+  border-color: var(--a-accent);
+  color: var(--a-text);
+  background: var(--a-accent-weak);
+}
+.a-chip input {
+  accent-color: var(--a-accent);
+}
+
+/* Sidebar */
+.a-sidebar {
+  width: 15rem;
+  flex-shrink: 0;
+  background: var(--a-panel);
+  border-right: 1px solid var(--a-border);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.a-nav-group {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--a-faint);
+  margin-top: 0.5rem;
+}
+.a-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8125rem;
+  color: var(--a-muted);
+  transition: background 0.12s, color 0.12s;
+}
+.a-nav-link:hover {
+  background: var(--a-panel-2);
+  color: var(--a-text);
+}
+.a-nav-link.is-active {
+  background: var(--a-accent-weak);
+  color: var(--a-accent);
+  font-weight: 600;
+}
+
+.a-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--a-border-strong);
+  background: var(--a-panel);
+  color: var(--a-muted);
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.a-theme-toggle:hover {
+  color: var(--a-text);
+  background: var(--a-panel-2);
+}
+
+.a-divider {
+  height: 1px;
+  background: var(--a-border);
+  border: 0;
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Compatibility shim — remaps the storefront utility classes still used by
+   the not-yet-rebuilt admin pages onto the admin palette, so the whole
+   panel is visually consistent from day one. Scoped to .admin-root; the
+   storefront keeps its own dark brand look untouched.
+   -------------------------------------------------------------------------- */
+.admin-root .bg-bg { background: var(--a-bg) !important; }
+.admin-root .bg-surface { background: var(--a-panel) !important; }
+.admin-root .bg-surface2 { background: var(--a-panel-2) !important; }
+.admin-root .hover\:bg-surface2:hover { background: var(--a-panel-2) !important; }
+.admin-root .border-border { border-color: var(--a-border) !important; }
+.admin-root .divide-border > :not([hidden]) ~ :not([hidden]) { border-color: var(--a-border) !important; }
+
+.admin-root .text-white,
+.admin-root .text-slate-100,
+.admin-root .text-slate-200 { color: var(--a-text) !important; }
+.admin-root .text-slate-300,
+.admin-root .text-slate-400 { color: var(--a-muted) !important; }
+.admin-root .text-slate-500,
+.admin-root .text-slate-600 { color: var(--a-faint) !important; }
+
+.admin-root .text-accent,
+.admin-root .text-accent-soft { color: var(--a-accent) !important; }
+.admin-root .text-danger { color: var(--a-danger) !important; }
+.admin-root .text-success { color: var(--a-success) !important; }
+.admin-root .text-warn { color: var(--a-warn) !important; }
+
+.admin-root .card {
+  background: var(--a-panel) !important;
+  border-color: var(--a-border) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--a-shadow);
+}
+.admin-root .input {
+  background: var(--a-panel) !important;
+  color: var(--a-text) !important;
+  border-color: var(--a-border-strong) !important;
+  border-radius: 8px !important;
+}
+.admin-root .input:focus {
+  border-color: var(--a-accent) !important;
+  box-shadow: 0 0 0 3px var(--a-ring) !important;
+}
+.admin-root .input::placeholder { color: var(--a-faint) !important; }
+.admin-root .label { color: var(--a-text) !important; }
+.admin-root .hint { color: var(--a-muted) !important; }
+.admin-root .form-section-heading { color: var(--a-text) !important; }
+
+.admin-root .btn-primary {
+  background: var(--a-accent) !important;
+  color: var(--a-on-accent) !important;
+}
+.admin-root .btn-primary:hover { background: var(--a-accent-hover) !important; }
+.admin-root .btn-danger {
+  background: var(--a-danger-weak) !important;
+  color: var(--a-danger) !important;
+  border-color: color-mix(in srgb, var(--a-danger) 35%, transparent) !important;
+}
+.admin-root .btn-secondary {
+  background: var(--a-panel) !important;
+  color: var(--a-text) !important;
+  border-color: var(--a-border-strong) !important;
+}
+
+.admin-root .badge { border-radius: 999px; }
+.admin-root .notice-box {
+  background: var(--a-warn-weak) !important;
+  border-color: color-mix(in srgb, var(--a-warn) 40%, transparent) !important;
+  color: var(--a-text) !important;
+}
+
+/* Accent-tinted translucent chips (bg-accent/10, /15, bg-warn/10 …) read
+   fine on dark but wash out on light — nudge them onto the tokens. */
+.admin-root .bg-accent\/10,
+.admin-root .bg-accent\/15,
+.admin-root .bg-accent\/20 { background: var(--a-accent-weak) !important; }
+.admin-root .bg-warn\/10 { background: var(--a-warn-weak) !important; }
+.admin-root .bg-danger\/10 { background: var(--a-danger-weak) !important; }
+.admin-root .bg-success\/10 { background: var(--a-success-weak) !important; }
+.admin-root .border-accent\/30,
+.admin-root .border-accent\/40 { border-color: color-mix(in srgb, var(--a-accent) 35%, transparent) !important; }
+.admin-root .border-warn\/30,
+.admin-root .border-warn\/40 { border-color: color-mix(in srgb, var(--a-warn) 35%, transparent) !important; }
+.admin-root .border-danger\/30,
+.admin-root .border-danger\/40 { border-color: color-mix(in srgb, var(--a-danger) 35%, transparent) !important; }

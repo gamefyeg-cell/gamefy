@@ -3,44 +3,48 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/admin/AdminTheme";
 
-/// The admin sidebar was a fixed 240px column with no mobile treatment at
-/// all — on a phone that eats most of the viewport and leaves the actual
-/// page content squeezed into a sliver. This wraps it into a proper
-/// off-canvas drawer below md: a slim top bar with a hamburger toggle,
-/// a tap-to-close backdrop, and the sidebar itself (passed as children,
-/// unchanged) sliding in over the content. At md+ it's inert — the
-/// sidebar renders in its normal static position exactly as before.
+/// Wraps the admin sidebar into an off-canvas drawer below md: a slim top
+/// bar with a hamburger toggle, a tap-to-close backdrop, and the sidebar
+/// sliding in over the content. At md+ it's inert — the sidebar renders in
+/// its normal static column.
 export default function AdminMobileChrome({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
-  // Auto-close on navigation — App Router keeps this layout mounted across
-  // admin subpages, so without this the drawer would stay open covering
-  // the page after tapping a link.
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
   return (
     <>
-      <div className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-surface sticky top-0 z-30">
+      <div
+        className="md:hidden flex items-center justify-between px-4 h-14 sticky top-0 z-30"
+        style={{ background: "var(--a-panel)", borderBottom: "1px solid var(--a-border)" }}
+      >
         <Link href="/admin" className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-mark.png" alt="Gamefy" className="h-7 w-7" />
-          <span className="text-sm font-extrabold text-white">
-            Game<span className="text-logo-gradient">fy</span> <span className="text-slate-500 font-normal">admin</span>
+          <span className="text-sm font-extrabold" style={{ color: "var(--a-text)" }}>
+            Game<span className="text-logo-gradient">fy</span>{" "}
+            <span className="font-normal" style={{ color: "var(--a-faint)" }}>
+              admin
+            </span>
           </span>
         </Link>
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-label={open ? "Close menu" : "Open menu"}
-          className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-surface2 text-slate-200"
-        >
-          {open ? "✕" : "☰"}
-        </button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-label={open ? "Close menu" : "Open menu"}
+            className="w-9 h-9 flex items-center justify-center rounded-lg a-btn-ghost"
+          >
+            {open ? "✕" : "☰"}
+          </button>
+        </div>
       </div>
 
       {open && (
@@ -48,7 +52,7 @@ export default function AdminMobileChrome({ children }: { children: React.ReactN
           type="button"
           aria-label="Close menu"
           onClick={() => setOpen(false)}
-          className="md:hidden fixed inset-0 bg-black/60 z-40"
+          className="md:hidden fixed inset-0 bg-black/50 z-40"
         />
       )}
 

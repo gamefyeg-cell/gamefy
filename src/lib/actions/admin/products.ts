@@ -113,15 +113,18 @@ export async function createProductAction(formData: FormData) {
 
     if (wantsQuickVariant) {
       const stockQtyRaw = String(formData.get("stockQty") ?? "");
+      const warrantyRaw = String(formData.get("warrantyDays") ?? "");
       const base = {
         price: Number(priceRaw) || 0,
         currency: String(formData.get("currency") ?? "EGP"),
         durationLabel: String(formData.get("durationLabel") ?? "").trim() || null,
+        edition: String(formData.get("edition") ?? "").trim() || null,
         saleMode: String(formData.get("saleMode") ?? "KEY"),
         deliveryMethod: String(formData.get("deliveryMethod") ?? "AUTO_KEY"),
         stockMode: String(formData.get("stockMode") ?? "MANUAL"),
         stockQty: stockQtyRaw ? Number(stockQtyRaw) : null,
         outOfStockMessage: String(formData.get("outOfStockMessage") ?? "") || null,
+        warrantyDays: warrantyRaw ? Number(warrantyRaw) : null,
         activationRegionId: String(formData.get("activationRegionId") ?? "") || null,
         active: true,
       };
