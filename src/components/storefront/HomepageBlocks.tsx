@@ -91,20 +91,17 @@ async function HeroSlider({ block }: { block: Block }) {
 
   return (
     <section className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-surface2 shadow-[0_24px_70px_-24px_rgba(0,0,0,0.75)]">
-      {/* Background photo (bg.png / bg2.png) stays. */}
+      {/* bg2.png fills the whole hero; the scrim inside HeroBackdrop keeps
+          the copy readable without boxing it in. */}
       <HeroBackdrop imageUrl={slide.imageUrl} alt={slide.title} />
 
-      <div className="relative grid items-center gap-8 p-5 sm:p-8 lg:grid-cols-2 lg:gap-10 lg:p-10">
-        {/* Frosted panel — same language as the product page: hairline
-            border, thin accent line, deep shadow, soft inner surfaces. */}
-        <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-bg/60 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
-          <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-accent via-accent-soft to-gold" />
-
+      <div className="relative grid items-center gap-8 p-6 sm:p-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:gap-6 lg:p-14">
+        <div className="max-w-lg [text-shadow:0_2px_12px_rgba(0,0,0,0.55)]">
           {slide.eyebrow && (
-            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent-soft">{slide.eyebrow}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent-soft">{slide.eyebrow}</span>
           )}
 
-          <h2 className="mt-3 font-heading text-[30px] font-bold leading-[1.08] tracking-tight text-white sm:text-[38px] lg:text-[46px]">
+          <h2 className="mt-3 font-heading text-[32px] font-bold leading-[1.06] tracking-tight text-white sm:text-[42px] lg:text-[52px]">
             {(titleLines.length ? titleLines : ["Instant", "Game Keys", "& Accounts"]).map((line, i, arr) => (
               <span key={i} className={`block ${arr.length > 1 && i === arr.length - 1 ? "text-accent-soft" : ""}`}>
                 {line}
@@ -112,33 +109,33 @@ async function HeroSlider({ block }: { block: Block }) {
             ))}
           </h2>
 
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-400">
+          <p className="mt-4 max-w-md text-sm leading-relaxed text-slate-300">
             {slide.subtitle ?? "Keys, full accounts, top-ups and subscriptions — verified and delivered fast, paid your way."}
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3">
-            <Link href={slide.linkUrl ?? "/"} className="btn-primary !rounded-xl !px-6 !py-3 text-[15px] font-semibold">
+          <div className="mt-7 flex flex-wrap items-center gap-x-4 gap-y-3">
+            <Link href={slide.linkUrl ?? "/"} className="btn-primary !rounded-xl !px-7 !py-3.5 text-[15px] font-semibold">
               {slide.ctaText ?? "Shop now"}
             </Link>
-            <Link href="/" className="text-sm font-medium text-slate-300 transition-colors hover:text-white">
+            <Link href="/" className="text-sm font-medium text-slate-200 transition-colors hover:text-white">
               Browse everything →
             </Link>
           </div>
 
-          <div className="mt-6 grid grid-cols-3 gap-2 border-t border-white/10 pt-4">
+          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2.5 text-xs">
             {TRUST_SIGNALS.map((t) => (
-              <div key={t.title} className="flex flex-col items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] px-2 py-2.5 text-center">
-                <span className="text-base" aria-hidden>
+              <span key={t.title} className="inline-flex items-center gap-2 text-slate-300">
+                <span className="text-sm" aria-hidden>
                   {t.icon}
                 </span>
-                <span className="text-[11px] font-medium leading-tight text-slate-300">{t.title}</span>
-              </div>
+                {t.title}
+              </span>
             ))}
           </div>
         </div>
 
         {/* Real product art — the centrepiece, over the photo. */}
-        <div className="flex min-h-[240px] items-center justify-center lg:min-h-[340px]">
+        <div className="flex min-h-[220px] items-center justify-center lg:min-h-[340px]">
           <HeroPosterFan products={fanProducts} />
         </div>
       </div>
