@@ -4,8 +4,6 @@ import { parseJson } from "@/lib/json";
 import { getActiveDiscounts, buildCollectionIdsMap, pickBestDiscountForCard } from "@/lib/discounts";
 import ProductCard from "@/components/storefront/ProductCard";
 import FlashCountdown from "@/components/storefront/FlashCountdown";
-import MagneticLink from "@/components/motion/MagneticLink";
-import HeroBackdrop from "@/components/storefront/HeroBackdrop";
 import HeroPosterFan from "@/components/storefront/HeroPosterFan";
 import { TRUST_SIGNALS } from "@/lib/trust-signals";
 
@@ -65,102 +63,81 @@ async function ProductGrid({ products }: { products: GridProduct[] }) {
 
 async function HeroSlider({ block }: { block: Block }) {
   const config = parseJson<{
-    slides?: { imageUrl: string; linkUrl?: string; ctaText?: string; title?: string; eyebrow?: string }[];
+    slides?: { imageUrl?: string; linkUrl?: string; ctaText?: string; title?: string; eyebrow?: string; subtitle?: string }[];
   }>(block.config, {});
   const slides = config.slides ?? [];
   if (slides.length === 0) return null;
   const slide = slides[0];
-  const titleLines = (slide.title ?? "").split("\n").filter(Boolean);
+  const titleLines = (slide.title ?? "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
-  // A game marketplace's hero should show off games, not abstract shapes —
-  // feature a handful of real products (preferring ones with real cover
-  // art) in a tilted poster fan alongside the admin's headline/CTA.
   let fanProducts = await prisma.product.findMany({
     where: { active: true, OR: [{ coverUrl: { not: null } }, { images: { not: "[]" } }] },
     orderBy: { createdAt: "desc" },
-    take: 5,
+    take: 4,
     select: productSelect,
   });
   if (fanProducts.length === 0) {
     fanProducts = await prisma.product.findMany({
       where: { active: true },
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: 4,
       select: productSelect,
     });
   }
 
   return (
-    <section className="card overflow-hidden relative bg-surface2">
-      <HeroBackdrop imageUrl={slide.imageUrl} alt={slide.title} />
-      {/* Content-driven height, not a fixed min-height — a fixed height
-          plus justify-between was reserving space for the poster fan even
-          when it was hidden below md, producing a large dead void on
-          narrow screens. The fan now always renders (smaller, centered,
-          stacked below the text on mobile; side-by-side on desktop), so
-          there's no gap left needing to be manufactured. */}
-      <div className="relative flex flex-col md:flex-row md:items-end justify-center md:justify-between gap-5 md:gap-8 px-5 md:px-10 py-8 md:py-14">
-        <div className="flex flex-col gap-3 md:gap-4 max-w-xl items-center md:items-start text-center md:text-left">
+    <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-surface2 via-surface to-bg">
+      {/* Soft ambient light — contained in the panel, never behind the copy. */}
+      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent/20 blur-[110px]" />
+      <div className="pointer-events-none absolute -bottom-28 left-1/4 h-64 w-64 rounded-full bg-gold/10 blur-[120px]" />
+
+      <div className="relative grid items-center gap-8 p-6 sm:p-10 lg:grid-cols-2 lg:gap-10">
+        {/* Copy sits on the solid panel — always legible. */}
+        <div className="flex flex-col items-start gap-5">
           {slide.eyebrow && <span className="eyebrow-badge">{slide.eyebrow}</span>}
 
-          {titleLines.length > 0 && (
-            <h2 className="font-display uppercase leading-[0.95] text-4xl md:text-7xl drop-shadow-lg">
-              {titleLines.map((line, i) =>
-                i % 2 === 1 ? (
-                  <span
-                    key={i}
-                    className="block bg-gradient-to-r from-accent to-gold bg-clip-text text-transparent"
-                  >
-                    {line}
-                  </span>
-                ) : (
-                  <span key={i} className="block text-white">
-                    {line}
-                  </span>
-                )
-              )}
-            </h2>
-          )}
-
-          {slide.linkUrl && (
-            <MagneticLink href={slide.linkUrl} className="btn-hero text-base !px-7 !py-3.5">
-              ⚡ {slide.ctaText ?? "Shop now"}
-            </MagneticLink>
-          )}
-
-          {/* Desktop: full icon + title + subtitle, as before. Mobile has
-              its own compact single-row version below instead of just
-              shrinking this one — three stacked two-line rows ate a third
-              of the mobile hero's height for content that's repeated
-              again lower on the page (product/cart pages all carry the
-              same trust strip). */}
-          <div className="hidden md:flex flex-wrap items-center justify-start gap-x-5 gap-y-3 pt-1">
-            {TRUST_SIGNALS.map((t) => (
-              <div key={t.title} className="flex items-center gap-2 text-left">
-                <span className="flex items-center justify-center w-9 h-9 rounded-full border border-accent/50 bg-accent/10 text-sm shrink-0">
-                  {t.icon}
-                </span>
-                <div className="leading-tight">
-                  <div className="text-xs font-semibold text-slate-200">{t.title}</div>
-                  <div className="text-[11px] text-slate-500">{t.subtitle}</div>
-                </div>
-              </div>
+          <h2 className="font-display text-[34px] leading-[1.03] text-white sm:text-5xl lg:text-[56px]">
+            {(titleLines.length ? titleLines : ["Your games,", "delivered in seconds"]).map((line, i, arr) => (
+              <span key={i} className={`block ${arr.length > 1 && i === arr.length - 1 ? "text-accent-soft" : ""}`}>
+                {line}
+              </span>
             ))}
+          </h2>
+
+          {slide.subtitle && <p className="max-w-md text-sm leading-relaxed text-slate-400">{slide.subtitle}</p>}
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+            <Link href={slide.linkUrl ?? "/"} className="btn-primary !rounded-xl !px-6 !py-3 text-[15px]">
+              {slide.ctaText ?? "Shop now"}
+            </Link>
+            <Link href="/" className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
+              Browse everything →
+            </Link>
           </div>
-          <div className="flex md:hidden items-center justify-center gap-2 pt-1">
+
+          <div className="flex flex-wrap gap-x-5 gap-y-2 pt-3 text-xs text-slate-500">
             {TRUST_SIGNALS.map((t) => (
-              <span
-                key={t.title}
-                className="badge bg-accent/10 border border-accent/30 text-slate-200 gap-1 !py-1.5"
-              >
-                {t.icon} {t.title}
+              <span key={t.title} className="inline-flex items-center gap-1.5">
+                <span className="text-sm">{t.icon}</span>
+                <span className="text-slate-300">{t.title}</span>
               </span>
             ))}
           </div>
         </div>
 
-        <div className="flex justify-center shrink-0">
-          <HeroPosterFan products={fanProducts} />
+        {/* Visual has its own space. */}
+        <div className="relative flex min-h-[220px] items-center justify-center lg:min-h-[320px]">
+          {slide.imageUrl ? (
+            <div className="relative aspect-[4/3] w-full max-w-md overflow-hidden rounded-xl border border-white/10">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={slide.imageUrl} alt={slide.title ?? ""} className="h-full w-full object-cover" />
+            </div>
+          ) : (
+            <HeroPosterFan products={fanProducts} />
+          )}
         </div>
       </div>
     </section>
@@ -242,7 +219,7 @@ async function FeaturedCollections({ block }: { block: Block }) {
         return (
           <section key={collection.id}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-heading font-bold uppercase tracking-wide text-white">{collection.name}</h2>
+              <h2 className="text-xl md:text-2xl font-heading font-semibold tracking-tight text-white">{collection.name}</h2>
               <Link href={`/collections/${collection.slug}`} className="text-sm text-accent-soft hover:text-accent">
                 See all →
               </Link>
@@ -303,7 +280,7 @@ async function TrendingBlock({ block }: { block: Block }) {
 
   return (
     <section>
-      <h2 className="text-2xl font-heading font-bold uppercase tracking-wide text-white mb-4">{config.title ?? "Trending Now"}</h2>
+      <h2 className="text-xl md:text-2xl font-heading font-semibold tracking-tight text-white mb-4">{config.title ?? "Trending Now"}</h2>
       <ProductGrid products={products} />
     </section>
   );
@@ -345,7 +322,7 @@ async function CustomBanner({ block }: { block: Block }) {
         <img src={config.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-50" />
       )}
       <div className="relative">
-        {config.title && <h3 className="text-2xl font-heading font-bold uppercase tracking-wide text-white">{config.title}</h3>}
+        {config.title && <h3 className="text-xl md:text-2xl font-heading font-semibold tracking-tight text-white">{config.title}</h3>}
         {config.subtitle && <p className="text-slate-300 text-sm mt-1">{config.subtitle}</p>}
       </div>
     </Link>

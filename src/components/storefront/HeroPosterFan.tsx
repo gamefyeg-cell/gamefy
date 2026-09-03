@@ -57,24 +57,10 @@ export default function HeroPosterFan({ products }: { products: FanProduct[] }) 
           >
             <motion.div
               className="w-28 sm:w-36"
-              initial={{ opacity: 0, y: 60, rotate: 0, scale: 0.6 }}
-              animate={{
-                opacity: 1,
-                x: cfg.x,
-                y: reduced ? cfg.y : [cfg.y - 8, cfg.y + 8, cfg.y - 8],
-                rotate: cfg.rotate,
-                scale: cfg.scale,
-              }}
-              transition={{
-                opacity: { duration: 0.6, delay: i * 0.08, ease: "easeOut" },
-                x: { duration: 0.6, delay: i * 0.08, ease: "easeOut" },
-                scale: { duration: 0.6, delay: i * 0.08, ease: "easeOut" },
-                rotate: { duration: 0.6, delay: i * 0.08, ease: "easeOut" },
-                y: reduced
-                  ? { duration: 0.6, delay: i * 0.08, ease: "easeOut" }
-                  : { duration: 4.5 + i * 0.4, repeat: Infinity, ease: "easeInOut", delay: i * 0.2 },
-              }}
-              whileHover={{ scale: cfg.scale * 1.1 }}
+              initial={reduced ? false : { opacity: 0, y: 40, rotate: 0, scale: 0.7 }}
+              animate={{ opacity: 1, x: cfg.x, y: cfg.y, rotate: cfg.rotate, scale: cfg.scale }}
+              transition={{ duration: 0.55, delay: i * 0.07, ease: "easeOut" }}
+              whileHover={{ scale: cfg.scale * 1.06, y: cfg.y - 6 }}
             >
               <ProductCard product={p} />
             </motion.div>
