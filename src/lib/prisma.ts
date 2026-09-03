@@ -34,6 +34,25 @@ function runtimeDatasourceUrl(): string | undefined {
 
 const datasourceUrl = runtimeDatasourceUrl();
 
+// One-time boot log: which host/port/params this deployment actually uses
+// for runtime queries. Credentials are never printed. Remove once the
+// pooler config is confirmed. Expected: host ...pooler.supabase.com:6543
+// with pgbouncer=true. If it says :5432 -> DATABASE_URL is the SESSION
+// pooler and that is the "EMAXCONNSESSION / session mode" bug.
+try {
+  const u = new URL(datasourceUrl ?? process.env.DATABASE_URL ?? "");
+  console.log(
+    `[prisma] datasource host=${u.host} params=${u.search || "(none)"} ` +
+      `DIRECT_URL=${process.env.DIRECT_URL ? "set" : "MISSING"}`
+  );
+  const others = Object.keys(process.env).filter(
+    (k) => /^(POSTGRES|PG|SUPABASE|DATABASE)/.test(k) && k !== "DATABASE_URL"
+  );
+  if (others.length) console.log(`[prisma] other DB-ish env vars present: ${others.join(", ")}`);
+} catch {
+  console.log("[prisma] DATABASE_URL is missing or not a valid URL");
+}
+
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient(datasourceUrl ? { datasources: { db: { url: datasourceUrl } } } : undefined);
