@@ -16,16 +16,30 @@ export function Info({ text }: { text: string }) {
   );
 }
 
-/** Label (+ required marker + ⓘ) above a control. */
+/** A step's heading — a short question + one calm line of context. */
+export function StepHead({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="a-step-head">
+      <h3>{title}</h3>
+      <p>{children}</p>
+    </div>
+  );
+}
+
+/** Label (+ required marker + optional ⓘ) above a control. */
 export function Field({
   label,
   tip,
+  hint,
   required,
   children,
   full,
 }: {
   label: string;
-  tip: string;
+  /** Optional ⓘ explainer shown on hover/focus. */
+  tip?: string;
+  /** Optional quiet one-liner shown under the control. */
+  hint?: string;
   required?: boolean;
   children: React.ReactNode;
   full?: boolean;
@@ -35,9 +49,46 @@ export function Field({
       <span className="a-label flex items-center gap-1.5">
         {label}
         {required && <span className="a-req">*</span>}
-        <Info text={tip} />
+        {tip && <Info text={tip} />}
       </span>
       {children}
+      {hint && <span className="a-hint block">{hint}</span>}
+    </div>
+  );
+}
+
+/** Calm progress: a thin bar + a quiet row of step names (visited ones
+ *  clickable). Less visual noise than a row of chip buttons. */
+export function WizardProgress({
+  labels,
+  step,
+  maxVisited,
+  onJump,
+}: {
+  labels: string[];
+  step: number;
+  maxVisited: number;
+  onJump: (i: number) => void;
+}) {
+  return (
+    <div>
+      <div className="a-progress" aria-hidden="true">
+        <i style={{ width: `${((step + 1) / labels.length) * 100}%` }} />
+      </div>
+      <div className="a-progress-steps">
+        {labels.map((l, i) => (
+          <button
+            type="button"
+            key={i}
+            disabled={i > maxVisited}
+            aria-current={i === step ? "step" : undefined}
+            onClick={() => onJump(i)}
+            className={i === step ? "is-current" : ""}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

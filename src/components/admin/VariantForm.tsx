@@ -13,7 +13,7 @@ import {
 import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/currencies";
 import { DURATION_PRESETS, deliveryOptionsFor, defaultSaleModeFor, splitDuration } from "@/lib/variant-options";
 import ActivationRegionSelect from "@/components/admin/ActivationRegionSelect";
-import { Field, Stepper, WizardNav, useStepper } from "@/components/admin/wizard-ui";
+import { Field, StepHead, WizardProgress, WizardNav, useStepper } from "@/components/admin/wizard-ui";
 
 interface ActivationRegion {
   id: string;
@@ -47,9 +47,9 @@ export interface VariantDefaults {
 }
 
 /**
- * One product option's full fieldset, as a 3-step mini-wizard with ⓘ help
- * on every field. Shared by "Add option" (create) and the single-variant
- * edit page. All field names match variantFieldsFrom() in
+ * One purchase option's fieldset as a calm 3-step flow — essentials first,
+ * the rest behind their own steps. Shared by "Add an option" (create) and
+ * the single-option edit page. Field names match variantFieldsFrom() in
  * src/lib/actions/admin/products.ts.
  */
 export default function VariantForm({
@@ -91,32 +91,27 @@ export default function VariantForm({
   const accountFields = saleMode === "FULL_ACCOUNT" || saleMode === "SHARED_ACCOUNT";
   const durationValue = durationPreset === "__custom__" ? durationCustom : durationPreset;
 
-  // Keep the saved value selectable even if it's outside the "sensible" set.
   const deliveryOpts = useMemo(() => {
     const base = deliveryOptionsFor(saleMode, productType);
     return base.includes(deliveryMethod) ? base : [deliveryMethod, ...base];
   }, [saleMode, productType, deliveryMethod]);
 
-  const stepKeys = ["option", "pricing", "region"];
+  const stepKeys = ["basics", "delivery", "region"];
   const { step, maxVisited, currentKey, isLast, next, back, jump, onSubmit } = useStepper(formRef, stepKeys);
 
   return (
-    <form ref={formRef} action={action} onSubmit={onSubmit} className="flex flex-col gap-4">
+    <form ref={formRef} action={action} onSubmit={onSubmit} className="a-wizard flex flex-col gap-5">
       <input type="hidden" name="productId" value={productId} />
       {mode === "edit" && variantId && <input type="hidden" name="id" value={variantId} />}
 
-      <Stepper
-        stepKeys={stepKeys}
-        labels={["Option", "Price & stock", "Region & notes"]}
-        step={step}
-        maxVisited={maxVisited}
-        onJump={jump}
-      />
+      <WizardProgress labels={["Basics", "Delivery & stock", "Region & notes"]} step={step} maxVisited={maxVisited} onJump={jump} />
 
-      <div className="a-card" style={{ padding: "1.25rem" }}>
-        {/* ---------- Option ---------- */}
-        <div data-stepkey="option" hidden={currentKey !== "option"} className="grid gap-4 sm:grid-cols-2">
-          <Field label="SKU" tip="Your internal code for this exact option. Must be unique across the whole store." required>
+      <div className="a-card">
+        {/* -------- Basics -------- */}
+        <div data-stepkey="basics" hidden={currentKey !== "basics"} className="a-step-panel">
+          <StepHead title="The essentials">Price and how it's sold. Everything else has a default on the next steps.</StepHead>
+
+          <Field label="SKU" tip="Your internal code for this exact option. Must be unique across the store." required>
             <input
               name="sku"
               required
@@ -125,7 +120,7 @@ export default function VariantForm({
               placeholder="e.g. fifa-25-pc"
             />
           </Field>
-          <Field label="Platform" tip="Which platform this option is for. Set it whenever the product is sold for more than one platform — the storefront then shows a platform picker.">
+          <Field label="Platform" hint="Set it when the product is sold for more than one platform.">
             <select name="platform" className="a-select" defaultValue={defaults.platform ?? ""}>
               <option value="">— Not set —</option>
               {PLATFORMS.map((p) => (
@@ -136,7 +131,22 @@ export default function VariantForm({
             </select>
           </Field>
 
-          <Field label="Sale mode" tip="Key = buyer redeems a code themselves. Full / Shared Account = you deliver login credentials. Direct Top-Up = you credit their game account.">
+          <div className="a-pair">
+            <Field label="Price" required>
+              <input name="price" type="number" step="0.01" min="0" required className="a-input" defaultValue={defaults.price ?? ""} />
+            </Field>
+            <Field label="Currency">
+              <select name="currency" className="a-select" defaultValue={defaults.currency ?? DEFAULT_CURRENCY} required>
+                {CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          <Field label="How it's sold" tip="Key = buyer redeems a code. Full / Shared Account = you hand over login details. Direct Top-Up = you credit their game account.">
             <select
               name="saleMode"
               className="a-select"
@@ -153,28 +163,9 @@ export default function VariantForm({
               ))}
             </select>
           </Field>
-          <Field label="Delivery method" tip="How this reaches the buyer once payment is verified — automatically from uploaded stock, or manually by your team.">
-            <select
-              name="deliveryMethod"
-              className="a-select"
-              value={deliveryMethod}
-              onChange={(e) => setDeliveryMethod(e.target.value)}
-            >
-              {deliveryOpts.map((d) => (
-                <option key={d} value={d}>
-                  {labelFor(DELIVERY_METHODS, d)}
-                </option>
-              ))}
-            </select>
-          </Field>
 
-          {isGame && (
-            <Field label="Edition" tip="Only if you sell more than one edition (Standard / Deluxe / …).">
-              <input name="edition" className="a-input" defaultValue={defaults.edition ?? ""} placeholder="Standard / Deluxe" />
-            </Field>
-          )}
           {isSub && (
-            <Field label="Plan length" tip="The subscription length this option grants. Add one option per length — they show as a plan picker on the product page.">
+            <Field label="Plan length">
               <select className="a-select" value={durationPreset} onChange={(e) => setDurationPreset(e.target.value)}>
                 {DURATION_PRESETS.map((d) => (
                   <option key={d} value={d}>
@@ -194,35 +185,48 @@ export default function VariantForm({
             </Field>
           )}
           <input type="hidden" name="durationLabel" value={isSub ? durationValue : defaults.durationLabel ?? ""} />
+
+          {stockMode === "MANUAL" && (
+            <Field label="How many in stock?" hint="Upload the actual keys / credentials below after saving.">
+              <input name="stockQty" type="number" min="0" className="a-input" defaultValue={defaults.stockQty ?? ""} />
+            </Field>
+          )}
+
+          {mode === "edit" && (
+            <details className="a-more">
+              <summary>Supplier cost (for your margin only)</summary>
+              <div className="a-more-body">
+                <Field label="Cost" hint="Never shown to buyers.">
+                  <input name="cost" type="number" step="0.01" min="0" className="a-input" defaultValue={defaults.cost ?? ""} />
+                </Field>
+              </div>
+            </details>
+          )}
+          {mode === "create" && <input type="hidden" name="cost" value="" />}
           {!isGame && !isSub && <input type="hidden" name="edition" value={defaults.edition ?? ""} />}
         </div>
 
-        {/* ---------- Price & stock ---------- */}
-        <div data-stepkey="pricing" hidden={currentKey !== "pricing"} className="grid gap-4 sm:grid-cols-2">
-          <Field label="Price" tip="What the buyer pays for this option, before any discount." required>
-            <input
-              name="price"
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              className="a-input"
-              defaultValue={defaults.price ?? ""}
-            />
-          </Field>
-          <Field label="Cost" tip="Optional — your supplier cost, used only for your own margin reporting. Never shown to buyers.">
-            <input name="cost" type="number" step="0.01" min="0" className="a-input" defaultValue={defaults.cost ?? ""} />
-          </Field>
-          <Field label="Currency" tip="Shown next to the price on the storefront.">
-            <select name="currency" className="a-select" defaultValue={defaults.currency ?? DEFAULT_CURRENCY} required>
-              {CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code} — {c.name}
+        {/* -------- Delivery & stock -------- */}
+        <div data-stepkey="delivery" hidden={currentKey !== "delivery"} className="a-step-panel">
+          <StepHead title="Delivery &amp; stock">These are pre-filled — change only what you need to.</StepHead>
+
+          <Field label="Delivery method" tip="Usually matches “How it's sold”. Change only if you deliver a different way.">
+            <select name="deliveryMethod" className="a-select" value={deliveryMethod} onChange={(e) => setDeliveryMethod(e.target.value)}>
+              {deliveryOpts.map((d) => (
+                <option key={d} value={d}>
+                  {labelFor(DELIVERY_METHODS, d)}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="Stock mode" tip="Manual = you track an exact count and upload keys/credentials. Unlimited = never runs out. Provider-synced = pulled from a supplier API.">
+
+          {isGame && (
+            <Field label="Edition" hint="Only if you sell more than one (Standard / Deluxe …).">
+              <input name="edition" className="a-input" defaultValue={defaults.edition ?? ""} placeholder="Standard" />
+            </Field>
+          )}
+
+          <Field label="Stock type" tip="Manual = you track a count. Unlimited = never runs out. Provider-synced = pulled from a supplier API.">
             <select name="stockMode" className="a-select" value={stockMode} onChange={(e) => setStockMode(e.target.value)}>
               {STOCK_MODES.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -232,12 +236,7 @@ export default function VariantForm({
             </select>
           </Field>
           {stockMode === "MANUAL" && (
-            <Field label="Stock quantity" tip="Current count. For auto-delivered options, upload the actual keys / credentials below after saving.">
-              <input name="stockQty" type="number" min="0" className="a-input" defaultValue={defaults.stockQty ?? ""} />
-            </Field>
-          )}
-          {stockMode === "MANUAL" && (
-            <Field label="Sold-out message" tip="Optional — shown instead of the default “Out of stock” once stock hits 0." full>
+            <Field label="Sold-out message" hint='Optional — shown instead of "Out of stock" at 0.'>
               <input
                 name="outOfStockMessage"
                 className="a-input"
@@ -248,16 +247,14 @@ export default function VariantForm({
           )}
         </div>
 
-        {/* ---------- Region & notes ---------- */}
-        <div data-stepkey="region" hidden={currentKey !== "region"} className="grid gap-4 sm:grid-cols-2">
-          <Field label="Activation region" tip="Where this key / account actually works — Global, a zone (Europe, MENA…), or one country. Separate from the price currency.">
-            <ActivationRegionSelect
-              name="activationRegionId"
-              regions={activationRegions}
-              defaultValue={defaults.activationRegionId ?? ""}
-            />
+        {/* -------- Region & notes -------- */}
+        <div data-stepkey="region" hidden={currentKey !== "region"} className="a-step-panel">
+          <StepHead title="Region &amp; notes">All optional. Skip straight to save if none apply.</StepHead>
+
+          <Field label="Where it works" tip="Global, a zone (Europe, MENA…), or one country. Separate from the price currency.">
+            <ActivationRegionSelect name="activationRegionId" regions={activationRegions} defaultValue={defaults.activationRegionId ?? ""} />
           </Field>
-          <Field label="Region lock" tip="How strict the activation region is — “works anywhere, may need a VPN” vs. strictly tied to that region.">
+          <Field label="Region strictness" tip="How strict the region above is — “works anywhere, may need a VPN” vs. strictly locked.">
             <select name="regionLockType" className="a-select" defaultValue={defaults.regionLockType ?? "NONE"}>
               {REGION_LOCK_TYPES.map((r) => (
                 <option key={r.value} value={r.value}>
@@ -268,12 +265,12 @@ export default function VariantForm({
           </Field>
 
           {accountFields && (
-            <Field label="Warranty (days)" tip="How long you'll replace this account if it stops working. Leave blank for none.">
+            <Field label="Warranty (days)" hint="Days you'll replace a dead account. Blank = none.">
               <input name="warrantyDays" type="number" min="0" className="a-input" defaultValue={defaults.warrantyDays ?? ""} />
             </Field>
           )}
           {accountFields && (
-            <Field label="Account access" tip="Full = buyer may change email / password / everything. Login only = shared or rental, buyer must not change anything.">
+            <Field label="Account access" tip="Full = buyer may change everything. Login only = shared / rental, no changes.">
               <select name="accountAccessLevel" className="a-select" defaultValue={defaults.accountAccessLevel ?? ""}>
                 <option value="">—</option>
                 {ACCOUNT_ACCESS_LEVELS.map((a) => (
@@ -285,28 +282,23 @@ export default function VariantForm({
             </Field>
           )}
           {accountFields && (
-            <Field label="Account delivery note" tip="Shown with the delivered credentials — e.g. “do not change the email or enable 2FA”." full>
-              <input
-                name="accountDeliveryNote"
-                className="a-input"
-                defaultValue={defaults.accountDeliveryNote ?? ""}
-                placeholder="e.g. do not change email / region / 2FA"
-              />
+            <Field label="Account note" hint="Shown with the credentials, e.g. “don't change the email or 2FA”.">
+              <input name="accountDeliveryNote" className="a-input" defaultValue={defaults.accountDeliveryNote ?? ""} />
             </Field>
           )}
 
-          <Field label="Activation instructions" tip="Optional note shown near the price — e.g. “requires a VPN set to Turkey during activation”." full>
+          <Field label="Activation instructions" hint="Optional note near the price.">
             <input name="activationInstructions" className="a-input" defaultValue={defaults.activationInstructions ?? ""} />
           </Field>
-          <Field label="Redemption instructions" tip="Optional — how the buyer actually uses what they bought, e.g. “Steam → Games → Activate a Product”." full>
+          <Field label="Redemption instructions" hint="Optional — how to redeem what they bought.">
             <input name="redemptionInstructions" className="a-input" defaultValue={defaults.redemptionInstructions ?? ""} />
           </Field>
 
-          <label className="flex items-start gap-2 sm:col-span-2">
+          <label className="flex items-start gap-2">
             <input type="checkbox" name="active" defaultChecked={defaults.active ?? true} className="mt-0.5" />
             <span>
-              <span style={{ color: "var(--a-text)" }}>Active</span>
-              <span className="a-hint !mt-0 block">Uncheck to hide just this option from the storefront, without deleting it.</span>
+              <span style={{ color: "var(--a-text)" }}>Show on the storefront</span>
+              <span className="a-hint !mt-0 block">Uncheck to hide just this option.</span>
             </span>
           </label>
         </div>

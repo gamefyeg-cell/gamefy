@@ -68,6 +68,11 @@
   font-size: 14px;
   line-height: 1.5;
 }
+/* The `hidden` attribute must win over display utilities (.flex/.grid) and
+   over .a-step-panel — otherwise every wizard step renders at once. */
+.admin-root [hidden] {
+  display: none !important;
+}
 .admin-root *,
 .admin-root *::before,
 .admin-root *::after {
@@ -564,8 +569,128 @@ a.a-list-row:hover {
   justify-content: space-between;
   gap: 0.75rem;
   border-top: 1px solid var(--a-border);
-  padding-top: 1rem;
-  margin-top: 0.5rem;
+  padding-top: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+/* ---- Calm wizard ---------------------------------------------------------- */
+.a-wizard {
+  max-width: 560px;
+}
+.a-wizard .a-card {
+  padding: 1.75rem;
+}
+.a-wizard .a-input,
+.a-wizard .a-select,
+.a-wizard .a-textarea {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+}
+.a-wizard .a-label {
+  font-size: 0.875rem;
+  margin-bottom: 0.45rem;
+}
+
+/* one decision per row, generous breathing room */
+.a-step-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+}
+.a-step-head {
+  margin-bottom: 0.25rem;
+}
+.a-step-head h3 {
+  font-size: 1.1rem;
+  font-weight: 650;
+  color: var(--a-text);
+  margin: 0 0 0.3rem;
+}
+.a-step-head p {
+  font-size: 0.875rem;
+  color: var(--a-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+.a-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* slim progress instead of a row of chips */
+.a-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--a-panel-2);
+  overflow: hidden;
+}
+.a-progress > i {
+  display: block;
+  height: 100%;
+  background: var(--a-accent);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+.a-progress-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.55rem;
+  margin-top: 0.6rem;
+  font-size: 0.78rem;
+}
+.a-progress-steps button {
+  color: var(--a-faint);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.a-progress-steps button:disabled {
+  cursor: default;
+}
+.a-progress-steps button:not(:disabled):hover {
+  color: var(--a-muted);
+}
+.a-progress-steps button.is-current {
+  color: var(--a-accent);
+  font-weight: 650;
+}
+.a-progress-steps button + button::before {
+  content: "·";
+  margin-right: 0.55rem;
+  color: var(--a-border-strong);
+}
+
+/* "More options" disclosure inside a step */
+.a-more {
+  border: 1px solid var(--a-border);
+  border-radius: 10px;
+  background: var(--a-panel-2);
+}
+.a-more > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 550;
+  color: var(--a-muted);
+}
+.a-more > summary::-webkit-details-marker {
+  display: none;
+}
+.a-more > summary::after {
+  content: " ▾";
+  color: var(--a-faint);
+}
+.a-more[open] > summary::after {
+  content: " ▴";
+}
+.a-more-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  padding: 0.25rem 0.9rem 1.1rem;
 }
 
 /* --------------------------------------------------------------------------

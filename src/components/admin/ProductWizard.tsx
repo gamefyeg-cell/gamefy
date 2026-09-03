@@ -17,7 +17,7 @@ import ActivationRegionSelect from "@/components/admin/ActivationRegionSelect";
 import ImageUploader from "@/components/admin/ImageUploader";
 import SingleImageUploader from "@/components/admin/SingleImageUploader";
 import RichTextArea from "@/components/admin/RichTextArea";
-import { Field, Stepper, WizardNav, useStepper } from "@/components/admin/wizard-ui";
+import { Field, StepHead, WizardProgress, WizardNav, useStepper } from "@/components/admin/wizard-ui";
 import { DURATION_PRESETS, deliveryOptionsFor, defaultSaleModeFor } from "@/lib/variant-options";
 
 interface Category {
@@ -41,10 +41,14 @@ type VUI = {
 };
 function makeVUI(type: string): VUI {
   const sm = defaultSaleModeFor(type);
-  return { saleMode: sm, deliveryMethod: deliveryOptionsFor(sm, type)[0], stockMode: "MANUAL", durationPreset: "1 Month", durationCustom: "" };
+  return {
+    saleMode: sm,
+    deliveryMethod: deliveryOptionsFor(sm, type)[0],
+    stockMode: "MANUAL",
+    durationPreset: "1 Month",
+    durationCustom: "",
+  };
 }
-
-/* ---------- wizard ---------- */
 
 export default function ProductWizard({
   categories,
@@ -73,7 +77,6 @@ export default function ProductWizard({
 
   const { step: safeStep, currentKey, maxVisited, isLast, next, back, jump, onSubmit } = useStepper(formRef, stepKeys);
 
-  // Keep per-variant UI state array the same length as the platform list.
   useEffect(() => {
     setVui((prev) => {
       const want = variantKeys.length;
@@ -89,65 +92,60 @@ export default function ProductWizard({
     if (currentKey !== "review") return;
     const f = formRef.current;
     if (!f) return;
-    const rows = (addPricing ? variantKeys : []).map((pk, i) => ({
-      platform: pk,
-      price: (f.elements.namedItem(`v${i}_price`) as HTMLInputElement)?.value ?? "",
-      currency: (f.elements.namedItem(`v${i}_currency`) as HTMLSelectElement)?.value ?? "",
-      saleMode: (f.elements.namedItem(`v${i}_saleMode`) as HTMLSelectElement)?.value ?? "",
-    }));
-    setReview(rows);
+    setReview(
+      (addPricing ? variantKeys : []).map((pk, i) => ({
+        platform: pk,
+        price: (f.elements.namedItem(`v${i}_price`) as HTMLInputElement)?.value ?? "",
+        currency: (f.elements.namedItem(`v${i}_currency`) as HTMLSelectElement)?.value ?? "",
+        saleMode: (f.elements.namedItem(`v${i}_saleMode`) as HTMLSelectElement)?.value ?? "",
+      }))
+    );
   }, [currentKey, addPricing, variantKeys]);
 
   function setVuiAt(i: number, patch: Partial<VUI>) {
     setVui((prev) => prev.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
   }
-  function onTypeChange(next: string) {
-    setType(next);
-    setVui((prev) => prev.map(() => makeVUI(next)));
-    if (next !== "GAME" && next !== "ACCOUNT") setPlatforms([]);
+  function onTypeChange(nextType: string) {
+    setType(nextType);
+    setVui((prev) => prev.map(() => makeVUI(nextType)));
+    if (nextType !== "GAME" && nextType !== "ACCOUNT") setPlatforms([]);
   }
   function togglePlatform(value: string, on: boolean) {
     setPlatforms((prev) => (on ? [...prev, value] : prev.filter((p) => p !== value)));
   }
 
   function stepLabel(key: string) {
-    if (key === "basics") return "Basics";
-    if (key === "media") return "Media";
-    if (key === "description") return "Details";
+    if (key === "basics") return "Name";
+    if (key === "media") return "Images";
+    if (key === "description") return "Description";
     if (key === "platforms") return "Platforms";
     if (key === "review") return "Review";
     const i = Number(key.slice(1));
     const pk = variantKeys[i];
-    return pk ? labelFor(PLATFORMS, pk) : "Pricing";
+    return pk ? labelFor(PLATFORMS, pk) : "Price";
   }
 
   const isSub = type === "SUBSCRIPTION";
   const isGame = type === "GAME";
 
   return (
-    <form ref={formRef} action={createProductWizardAction} onSubmit={onSubmit} className="flex flex-col gap-4">
-      {/* always-submitted hidden fields */}
+    <form ref={formRef} action={createProductWizardAction} onSubmit={onSubmit} className="a-wizard flex flex-col gap-5">
       {platforms.map((p) => (
         <input key={p} type="hidden" name="platforms" value={p} />
       ))}
       <input type="hidden" name="variantCount" value={addPricing ? variantKeys.length : 0} />
       <input type="hidden" name="skipPricing" value={addPricing ? "" : "on"} />
 
-      <Stepper
-        stepKeys={stepKeys}
-        labels={stepKeys.map(stepLabel)}
-        step={safeStep}
-        maxVisited={maxVisited}
-        onJump={jump}
-      />
+      <WizardProgress labels={stepKeys.map(stepLabel)} step={safeStep} maxVisited={maxVisited} onJump={jump} />
 
-      <div className="a-card" style={{ padding: "1.25rem" }}>
-        {/* ---------- Basics ---------- */}
-        <div data-stepkey="basics" hidden={currentKey !== "basics"} className="grid gap-4 sm:grid-cols-2">
-          <Field label="Product name" tip="The game / product name buyers see. Shared across every platform." required full>
+      <div className="a-card">
+        {/* -------- Name -------- */}
+        <div data-stepkey="basics" hidden={currentKey !== "basics"} className="a-step-panel">
+          <StepHead title="What are you selling?">Just the name and where it sits in the store.</StepHead>
+          <Field label="Product name" required>
             <input name="title" required className="a-input" placeholder="e.g. EA SPORTS FC 25" />
           </Field>
-          <Field label="Category" tip="Which shelf this shows under on the storefront (Games, Gift Cards, …)." required>
+          <Field label="Category" required>
             <select name="categoryId" required className="a-select" defaultValue={categories[0]?.id}>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -156,7 +154,7 @@ export default function ProductWizard({
               ))}
             </select>
           </Field>
-          <Field label="Type" tip="Drives which fields appear later — subscriptions get a plan picker, games/accounts get per-platform options.">
+          <Field label="Type" tip="Changes what you're asked next — subscriptions get a plan picker, games/accounts get a step per platform.">
             <select name="type" className="a-select" value={type} onChange={(e) => onTypeChange(e.target.value)}>
               {PRODUCT_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -165,68 +163,75 @@ export default function ProductWizard({
               ))}
             </select>
           </Field>
-          <Field label="Publisher" tip="Optional — shown as “by …” under the title on the product page.">
+          <Field label="Publisher" hint="Optional.">
             <input name="publisher" className="a-input" placeholder="e.g. EA" />
           </Field>
         </div>
 
-        {/* ---------- Media (shared) ---------- */}
-        <div data-stepkey="media" hidden={currentKey !== "media"} className="flex flex-col gap-4">
-          <p className="a-sub">These are shared by every platform — one cover, one gallery, one trailer.</p>
-          <Field label="Cover (box art)" tip="Portrait ~2:3, like a game case. Shown on cards and listings. Optional — the first gallery image is used if left blank.">
+        {/* -------- Images -------- */}
+        <div data-stepkey="media" hidden={currentKey !== "media"} className="a-step-panel">
+          <StepHead title="Add a picture">Shared by every option — you set this once.</StepHead>
+          <Field label="Cover art" hint="Portrait, like a game case. Optional — the first gallery image is used if blank.">
             <SingleImageUploader name="coverUrl" portrait />
           </Field>
-          <Field label="Gallery images" tip="Landscape screenshots / key art on the product page. One is fine. Drag to reorder.">
+          <Field label="Gallery" hint="Screenshots / wide shots for the product page. One is fine.">
             <ImageUploader name="images" />
           </Field>
-          <Field label="YouTube trailer" tip="Optional. Paste any YouTube link — watch, share, or shorts. Shown as a video tile in the gallery.">
-            <input name="videoUrl" className="a-input" placeholder="https://www.youtube.com/watch?v=…" />
-          </Field>
+          <details className="a-more">
+            <summary>Add a trailer</summary>
+            <div className="a-more-body">
+              <Field label="YouTube link" hint="Any watch / share / shorts link.">
+                <input name="videoUrl" className="a-input" placeholder="https://www.youtube.com/watch?v=…" />
+              </Field>
+            </div>
+          </details>
         </div>
 
-        {/* ---------- Details (shared) ---------- */}
-        <div data-stepkey="description" hidden={currentKey !== "description"} className="flex flex-col gap-4">
-          <Field label="Description" tip="Shared across platforms. Use the B / • List buttons, or type emoji directly (🎮 ⚡ 🔑).">
-            <RichTextArea name="description" rows={4} placeholder={"Standard edition.\n- Full game, latest content\n- Instant delivery"} />
+        {/* -------- Description -------- */}
+        <div data-stepkey="description" hidden={currentKey !== "description"} className="a-step-panel">
+          <StepHead title="Describe it">A short blurb buyers read on the product page.</StepHead>
+          <Field label="Description">
+            <RichTextArea name="description" rows={5} placeholder={"Standard edition.\n- Full game, latest content\n- Instant delivery"} />
           </Field>
-          <Field label="“Before you buy” notice" tip="A highlighted warning box on the product page — region locks, activation steps, anything critical.">
-            <RichTextArea name="buyerNotice" rows={3} placeholder='e.g. "Requires a VPN set to Turkey during activation"' />
-          </Field>
-          <label className="flex items-start gap-2">
-            <input type="checkbox" name="requiresNoticeAck" className="mt-0.5" />
-            <span>
-              <span style={{ color: "var(--a-text)" }}>Require checkout acknowledgement</span>
-              <span className="a-hint !mt-0 block">Buyer must tick a box confirming they read the notice above before paying.</span>
-            </span>
-          </label>
           <label className="flex items-start gap-2">
             <input type="checkbox" name="active" defaultChecked className="mt-0.5" />
             <span>
-              <span style={{ color: "var(--a-text)" }}>Active</span>
-              <span className="a-hint !mt-0 block">Uncheck to keep it off the storefront for now.</span>
+              <span style={{ color: "var(--a-text)" }}>Show on the storefront</span>
+              <span className="a-hint !mt-0 block">Uncheck to save it as a draft.</span>
             </span>
           </label>
+
+          <details className="a-more">
+            <summary>Add a “before you buy” warning</summary>
+            <div className="a-more-body">
+              <Field label="Warning text" hint="Shown as a highlighted box — region locks, activation steps, etc.">
+                <RichTextArea name="buyerNotice" rows={3} placeholder='e.g. "Requires a VPN set to Turkey during activation"' />
+              </Field>
+              <label className="flex items-start gap-2">
+                <input type="checkbox" name="requiresNoticeAck" className="mt-0.5" />
+                <span>
+                  <span style={{ color: "var(--a-text)" }}>Make buyers tick “I’ve read this” at checkout</span>
+                </span>
+              </label>
+            </div>
+          </details>
+
           <hr className="a-divider" />
           <label className="flex items-start gap-2">
             <input type="checkbox" checked={addPricing} onChange={(e) => setAddPricing(e.target.checked)} className="mt-0.5" />
             <span>
-              <span style={{ color: "var(--a-text)" }}>Add pricing &amp; availability now</span>
-              <span className="a-hint !mt-0 block">
-                On = the next steps set price / stock / delivery for each platform. Off = save a bare listing and add
-                options later from the product page.
-              </span>
+              <span style={{ color: "var(--a-text)" }}>Set a price now</span>
+              <span className="a-hint !mt-0 block">Uncheck to save a draft listing and add prices later.</span>
             </span>
           </label>
         </div>
 
-        {/* ---------- Platforms ---------- */}
+        {/* -------- Platforms -------- */}
         {showPlatformStep && (
-          <div data-stepkey="platforms" hidden={currentKey !== "platforms"} className="flex flex-col gap-3">
-            <p className="a-sub">
-              Pick every platform this is sold for. Each gets its <strong>own</strong> price, stock, activation region and
-              delivery on its own step — only the name, cover, gallery and description are shared. Leave all unticked for
-              a single option with no platform.
-            </p>
+          <div data-stepkey="platforms" hidden={currentKey !== "platforms"} className="a-step-panel">
+            <StepHead title="Which platforms?">
+              You’ll set a price for each one on its own step. Leave empty for a single option.
+            </StepHead>
             <div className="flex flex-wrap gap-2">
               {PLATFORMS.map((p) => (
                 <label key={p.value} className="a-chip">
@@ -239,201 +244,197 @@ export default function ProductWizard({
                 </label>
               ))}
             </div>
-            <p className="a-sub">
+            <p className="a-hint">
               {platforms.length === 0
-                ? "→ 1 pricing step"
-                : `→ ${platforms.length} platform step${platforms.length === 1 ? "" : "s"}: ${platforms
+                ? "→ one price step"
+                : `→ ${platforms.length} step${platforms.length === 1 ? "" : "s"}: ${platforms
                     .map((p) => labelFor(PLATFORMS, p))
                     .join(", ")}`}
             </p>
           </div>
         )}
 
-        {/* ---------- Per-platform variant steps ---------- */}
+        {/* -------- Per-platform price -------- */}
         {addPricing &&
           variantKeys.map((pk, i) => {
             const u = vui[i] ?? makeVUI(type);
             const accountFields = u.saleMode === "FULL_ACCOUNT" || u.saleMode === "SHARED_ACCOUNT";
             const durationValue = u.durationPreset === "__custom__" ? u.durationCustom : u.durationPreset;
             return (
-              <div key={i} data-stepkey={`v${i}`} hidden={currentKey !== `v${i}`} className="flex flex-col gap-4">
-                <p className="a-sub">
-                  {pk ? (
-                    <>
-                      Data for <strong>{labelFor(PLATFORMS, pk)}</strong> only.
-                    </>
-                  ) : (
-                    "This product's single purchase option."
-                  )}
-                </p>
+              <div key={i} data-stepkey={`v${i}`} hidden={currentKey !== `v${i}`} className="a-step-panel">
+                <StepHead title={pk ? `Price — ${labelFor(PLATFORMS, pk)}` : "Price & availability"}>
+                  Just the essentials. Everything else has a sensible default under <em>More options</em>.
+                </StepHead>
                 <input type="hidden" name={`v${i}_platform`} value={pk} />
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Price" tip="What the buyer pays for this platform, before any discount." required>
+                <div className="a-pair">
+                  <Field label="Price" required>
                     <input name={`v${i}_price`} type="number" step="0.01" min="0" required className="a-input" placeholder="1200" />
                   </Field>
-                  <Field label="Currency" tip="Shown next to the price on the storefront.">
+                  <Field label="Currency">
                     <select name={`v${i}_currency`} defaultValue={DEFAULT_CURRENCY} className="a-select">
                       {CURRENCIES.map((c) => (
                         <option key={c.code} value={c.code}>
-                          {c.code} — {c.name}
+                          {c.code}
                         </option>
                       ))}
                     </select>
-                  </Field>
-
-                  <Field label="Sale mode" tip="Key = buyer redeems a code themselves. Full / Shared Account = you deliver login credentials. Direct Top-Up = you credit their game account.">
-                    <select
-                      name={`v${i}_saleMode`}
-                      className="a-select"
-                      value={u.saleMode}
-                      onChange={(e) => setVuiAt(i, { saleMode: e.target.value, deliveryMethod: deliveryOptionsFor(e.target.value, type)[0] })}
-                    >
-                      {SALE_MODES.map((s) => (
-                        <option key={s.value} value={s.value}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Delivery method" tip="How this reaches the buyer once payment is verified — automatically from uploaded stock, or manually by your team.">
-                    <select
-                      name={`v${i}_deliveryMethod`}
-                      className="a-select"
-                      value={u.deliveryMethod}
-                      onChange={(e) => setVuiAt(i, { deliveryMethod: e.target.value })}
-                    >
-                      {deliveryOptionsFor(u.saleMode, type).map((d) => (
-                        <option key={d} value={d}>
-                          {labelFor(DELIVERY_METHODS, d)}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-
-                  {isGame && (
-                    <Field label="Edition" tip="Only if you sell more than one edition of this platform (Standard / Deluxe / …).">
-                      <input name={`v${i}_edition`} className="a-input" placeholder="Standard / Deluxe" />
-                    </Field>
-                  )}
-                  {isSub && (
-                    <Field label="Plan length" tip="The subscription length this option grants. Add more lengths later from the product page — they show as a plan picker.">
-                      <select
-                        className="a-select"
-                        value={u.durationPreset}
-                        onChange={(e) => setVuiAt(i, { durationPreset: e.target.value })}
-                      >
-                        {DURATION_PRESETS.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                        <option value="__custom__">Custom…</option>
-                      </select>
-                      {u.durationPreset === "__custom__" && (
-                        <input
-                          className="a-input mt-2"
-                          placeholder="e.g. 2 Weeks"
-                          value={u.durationCustom}
-                          onChange={(e) => setVuiAt(i, { durationCustom: e.target.value })}
-                        />
-                      )}
-                    </Field>
-                  )}
-                  <input type="hidden" name={`v${i}_durationLabel`} value={isSub ? durationValue : ""} />
-
-                  <Field label="Stock mode" tip="Manual = you track an exact count and upload keys/credentials. Unlimited = never runs out. Provider-synced = pulled from a supplier API.">
-                    <select
-                      name={`v${i}_stockMode`}
-                      className="a-select"
-                      value={u.stockMode}
-                      onChange={(e) => setVuiAt(i, { stockMode: e.target.value })}
-                    >
-                      {STOCK_MODES.map((s) => (
-                        <option key={s.value} value={s.value}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  {u.stockMode === "MANUAL" && (
-                    <Field label="Stock quantity" tip="Starting count. Upload the actual keys / credentials from the product page after saving.">
-                      <input name={`v${i}_stockQty`} type="number" min="0" className="a-input" placeholder="0" />
-                    </Field>
-                  )}
-                  {u.stockMode === "MANUAL" && (
-                    <Field label="Sold-out message" tip="Optional — shown instead of the default “Out of stock” once this platform hits 0." full>
-                      <input name={`v${i}_outOfStockMessage`} className="a-input" placeholder='e.g. "Restocking Sunday"' />
-                    </Field>
-                  )}
-
-                  <Field label="Activation region" tip="Where this key / account actually works — Global, a zone (Europe, MENA…), or one country. Separate from the price currency.">
-                    <ActivationRegionSelect name={`v${i}_activationRegionId`} regions={activationRegions} />
-                  </Field>
-                  <Field label="Region lock" tip="How strict the activation region is — “works anywhere, may need a VPN” vs. strictly tied to that region.">
-                    <select name={`v${i}_regionLockType`} className="a-select" defaultValue="NONE">
-                      {REGION_LOCK_TYPES.map((r) => (
-                        <option key={r.value} value={r.value}>
-                          {r.label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-
-                  {accountFields && (
-                    <Field label="Warranty (days)" tip="How long you'll replace this account if it stops working. Leave blank for none.">
-                      <input name={`v${i}_warrantyDays`} type="number" min="0" className="a-input" placeholder="e.g. 30" />
-                    </Field>
-                  )}
-                  {accountFields && (
-                    <Field label="Account access" tip="Full = buyer may change email / password / everything. Login only = shared or rental, buyer must not change anything.">
-                      <select name={`v${i}_accountAccessLevel`} className="a-select" defaultValue="">
-                        <option value="">—</option>
-                        {ACCOUNT_ACCESS_LEVELS.map((a) => (
-                          <option key={a.value} value={a.value}>
-                            {a.label}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                  )}
-                  {accountFields && (
-                    <Field label="Account delivery note" tip="Shown with the delivered credentials — e.g. “do not change the email or enable 2FA”." full>
-                      <input name={`v${i}_accountDeliveryNote`} className="a-input" placeholder="e.g. do not change email / region / 2FA" />
-                    </Field>
-                  )}
-
-                  <Field label="Activation instructions" tip="Optional note shown near the price — e.g. “requires a VPN set to Turkey during activation”." full>
-                    <input name={`v${i}_activationInstructions`} className="a-input" />
-                  </Field>
-                  <Field label="Redemption instructions" tip="Optional — how the buyer actually uses what they bought, e.g. “Steam → Games → Activate a Product”." full>
-                    <input name={`v${i}_redemptionInstructions`} className="a-input" />
                   </Field>
                 </div>
+
+                <Field label="How it's sold" tip="Key = buyer redeems a code. Full / Shared Account = you hand over login details. Direct Top-Up = you credit their game account.">
+                  <select
+                    name={`v${i}_saleMode`}
+                    className="a-select"
+                    value={u.saleMode}
+                    onChange={(e) => setVuiAt(i, { saleMode: e.target.value, deliveryMethod: deliveryOptionsFor(e.target.value, type)[0] })}
+                  >
+                    {SALE_MODES.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                {isSub && (
+                  <Field label="Plan length">
+                    <select className="a-select" value={u.durationPreset} onChange={(e) => setVuiAt(i, { durationPreset: e.target.value })}>
+                      {DURATION_PRESETS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                      <option value="__custom__">Custom…</option>
+                    </select>
+                    {u.durationPreset === "__custom__" && (
+                      <input
+                        className="a-input mt-2"
+                        placeholder="e.g. 2 Weeks"
+                        value={u.durationCustom}
+                        onChange={(e) => setVuiAt(i, { durationCustom: e.target.value })}
+                      />
+                    )}
+                  </Field>
+                )}
+                <input type="hidden" name={`v${i}_durationLabel`} value={isSub ? durationValue : ""} />
+
+                {u.stockMode === "MANUAL" && (
+                  <Field label="How many in stock?" hint="Add the actual keys / credentials from the product page after saving.">
+                    <input name={`v${i}_stockQty`} type="number" min="0" className="a-input" placeholder="0" />
+                  </Field>
+                )}
+
+                <details className="a-more">
+                  <summary>More options for this {pk ? "platform" : "option"}</summary>
+                  <div className="a-more-body">
+                    <Field label="Delivery method" tip="Usually auto-picked from “How it's sold”. Change only if you deliver a different way.">
+                      <select
+                        name={`v${i}_deliveryMethod`}
+                        className="a-select"
+                        value={u.deliveryMethod}
+                        onChange={(e) => setVuiAt(i, { deliveryMethod: e.target.value })}
+                      >
+                        {deliveryOptionsFor(u.saleMode, type).map((d) => (
+                          <option key={d} value={d}>
+                            {labelFor(DELIVERY_METHODS, d)}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    {isGame && (
+                      <Field label="Edition" hint="Only if you sell more than one (Standard / Deluxe …).">
+                        <input name={`v${i}_edition`} className="a-input" placeholder="Standard" />
+                      </Field>
+                    )}
+
+                    <Field label="Stock type" tip="Manual = you track a count. Unlimited = never runs out. Provider-synced = pulled from a supplier API.">
+                      <select
+                        name={`v${i}_stockMode`}
+                        className="a-select"
+                        value={u.stockMode}
+                        onChange={(e) => setVuiAt(i, { stockMode: e.target.value })}
+                      >
+                        {STOCK_MODES.map((s) => (
+                          <option key={s.value} value={s.value}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    {u.stockMode === "MANUAL" && (
+                      <Field label="Sold-out message" hint='Optional — shown instead of "Out of stock" at 0.'>
+                        <input name={`v${i}_outOfStockMessage`} className="a-input" placeholder='e.g. "Restocking Sunday"' />
+                      </Field>
+                    )}
+
+                    <Field label="Where it works" tip="Global, a zone (Europe, MENA…), or one country. Separate from the price currency.">
+                      <ActivationRegionSelect name={`v${i}_activationRegionId`} regions={activationRegions} />
+                    </Field>
+                    <Field label="Region strictness" tip="How strict the region above is — “works anywhere, may need a VPN” vs. strictly locked.">
+                      <select name={`v${i}_regionLockType`} className="a-select" defaultValue="NONE">
+                        {REGION_LOCK_TYPES.map((r) => (
+                          <option key={r.value} value={r.value}>
+                            {r.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    {accountFields && (
+                      <Field label="Warranty (days)" hint="Days you'll replace a dead account. Blank = none.">
+                        <input name={`v${i}_warrantyDays`} type="number" min="0" className="a-input" placeholder="e.g. 30" />
+                      </Field>
+                    )}
+                    {accountFields && (
+                      <Field label="Account access" tip="Full = buyer may change everything. Login only = shared / rental, no changes.">
+                        <select name={`v${i}_accountAccessLevel`} className="a-select" defaultValue="">
+                          <option value="">—</option>
+                          {ACCOUNT_ACCESS_LEVELS.map((a) => (
+                            <option key={a.value} value={a.value}>
+                              {a.label}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    )}
+                    {accountFields && (
+                      <Field label="Account note" hint="Shown with the credentials, e.g. “don't change the email or 2FA”.">
+                        <input name={`v${i}_accountDeliveryNote`} className="a-input" />
+                      </Field>
+                    )}
+
+                    <Field label="Activation instructions" hint="Optional note near the price.">
+                      <input name={`v${i}_activationInstructions`} className="a-input" />
+                    </Field>
+                    <Field label="Redemption instructions" hint="Optional — how to redeem what they bought.">
+                      <input name={`v${i}_redemptionInstructions`} className="a-input" />
+                    </Field>
+                  </div>
+                </details>
               </div>
             );
           })}
 
-        {/* ---------- Review ---------- */}
-        <div data-stepkey="review" hidden={currentKey !== "review"} className="flex flex-col gap-4">
-          <p className="a-sub">Check everything, then create. You can edit any field afterward from the product page.</p>
-          <div className="a-card" style={{ padding: "0.9rem", background: "var(--a-panel-2)" }}>
-            <div className="grid gap-2 sm:grid-cols-2 text-sm">
-              <div>
-                <span className="a-sub block">Type</span>
-                {labelFor(PRODUCT_TYPES, type)}
-              </div>
-              <div>
-                <span className="a-sub block">Platforms</span>
-                {platforms.length ? platforms.map((p) => labelFor(PLATFORMS, p)).join(", ") : "Single option"}
-              </div>
+        {/* -------- Review -------- */}
+        <div data-stepkey="review" hidden={currentKey !== "review"} className="a-step-panel">
+          <StepHead title="Ready">Create it now — tweak anything from the product page afterward.</StepHead>
+          <div className="grid gap-2 sm:grid-cols-2 text-sm">
+            <div>
+              <span className="a-sub block">Type</span>
+              {labelFor(PRODUCT_TYPES, type)}
+            </div>
+            <div>
+              <span className="a-sub block">Platforms</span>
+              {platforms.length ? platforms.map((p) => labelFor(PLATFORMS, p)).join(", ") : "Single option"}
             </div>
           </div>
 
           {!addPricing ? (
-            <p className="a-badge a-badge-warn" style={{ alignSelf: "flex-start" }}>
-              Bare listing — no purchase option yet
-            </p>
+            <span className="a-badge a-badge-warn" style={{ alignSelf: "flex-start" }}>
+              Draft — no price yet
+            </span>
           ) : (
             <div className="a-list">
               {review.map((r, i) => (
