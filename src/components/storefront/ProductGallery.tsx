@@ -4,72 +4,107 @@ import { useState } from "react";
 
 type Slide = { type: "image"; url: string } | { type: "video"; videoId: string };
 
-/// Product media viewer: the photo(s) an admin uploaded plus an optional
-/// YouTube trailer, all in one clickable strip. A product with just one
-/// photo and no video renders exactly as before (single static image, no
-/// thumbnail strip) — the video slot only appears when one was set.
+/// Product media viewer — the uploaded photos plus an optional YouTube
+/// trailer. The active image sits `object-contain` over a blurred copy of
+/// itself, so portrait box-art and wide screenshots both display without
+/// being cropped or leaving a dead grey box.
 export default function ProductGallery({
   images,
   videoId,
   title,
+  cover,
 }: {
   images: string[];
   videoId: string | null;
   title: string;
+  cover?: string | null;
 }) {
+  const ordered = cover && !images.includes(cover) ? [cover, ...images] : images;
   const slides: Slide[] = [
-    ...images.map((url) => ({ type: "image" as const, url })),
+    ...ordered.map((url) => ({ type: "image" as const, url })),
     ...(videoId ? [{ type: "video" as const, videoId }] : []),
   ];
   const [active, setActive] = useState(0);
-  const current = slides[active];
+  const current = slides[Math.min(active, slides.length - 1)];
+
+  if (!current) {
+    return (
+      <div className="grid aspect-[16/10] place-items-center rounded-xl border border-border bg-surface2">
+        <span className="font-heading text-6xl text-slate-700">{title.slice(0, 1).toUpperCase()}</span>
+      </div>
+    );
+  }
+
+  const go = (dir: -1 | 1) => setActive((a) => (a + dir + slides.length) % slides.length);
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Same gradient-frame treatment as the poster cards elsewhere on the
-          site (accent → gold border), so the hero image on a product page
-          reads as part of the same design system, not a generic <img>. */}
-      <div className="rounded-2xl p-[3px] bg-gradient-to-br from-accent via-accent-soft to-gold shadow-glow">
-        <div className="rounded-[13px] aspect-video overflow-hidden bg-surface2 flex items-center justify-center">
-          {!current ? (
-            <span className="text-5xl font-bold text-slate-600">{title.slice(0, 1)}</span>
-          ) : current.type === "video" ? (
-            <iframe
-              className="w-full h-full"
-              src={`https://www.youtube-nocookie.com/embed/${current.videoId}`}
-              title={`${title} trailer`}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              loading="lazy"
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={current.url} alt={title} className="w-full h-full object-cover" />
-          )}
-        </div>
+      <div className="group relative aspect-[16/10] overflow-hidden rounded-xl border border-border bg-surface2">
+        {current.type === "image" && (
+          <img
+            src={current.url}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-35 blur-2xl"
+          />
+        )}
+        {current.type === "video" ? (
+          <iframe
+            className="absolute inset-0 h-full w-full"
+            src={`https://www.youtube-nocookie.com/embed/${current.videoId}`}
+            title={`${title} trailer`}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            loading="lazy"
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={current.url} alt={title} className="absolute inset-0 h-full w-full object-contain" />
+        )}
+
+        {slides.length > 1 && current.type !== "video" && (
+          <>
+            <button
+              type="button"
+              onClick={() => go(-1)}
+              aria-label="Previous image"
+              className="absolute left-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-lg text-white opacity-0 backdrop-blur transition hover:bg-black/70 group-hover:opacity-100"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={() => go(1)}
+              aria-label="Next image"
+              className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-lg text-white opacity-0 backdrop-blur transition hover:bg-black/70 group-hover:opacity-100"
+            >
+              ›
+            </button>
+          </>
+        )}
       </div>
 
       {slides.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex gap-2 overflow-x-auto pb-1">
           {slides.map((s, i) => (
             <button
               key={i}
               type="button"
               onClick={() => setActive(i)}
-              aria-label={s.type === "video" ? "Play trailer" : `View photo ${i + 1}`}
-              className={`relative w-20 h-20 rounded-lg overflow-hidden border shrink-0 transition-colors ${
-                i === active ? "border-accent" : "border-border hover:border-accent/50"
+              aria-label={s.type === "video" ? "Play trailer" : `View image ${i + 1}`}
+              className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-lg ring-2 transition ${
+                i === active ? "ring-accent" : "ring-transparent opacity-55 hover:opacity-100"
               }`}
             >
               {s.type === "video" ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={`https://i.ytimg.com/vi/${s.videoId}/default.jpg`} alt="" className="w-full h-full object-cover" />
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white text-lg">▶</span>
+                  <img src={`https://i.ytimg.com/vi/${s.videoId}/mqdefault.jpg`} alt="" className="h-full w-full object-cover" />
+                  <span className="absolute inset-0 grid place-items-center bg-black/40 text-white">▶</span>
                 </>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={s.url} alt="" className="w-full h-full object-cover" />
+                <img src={s.url} alt="" className="h-full w-full object-cover" />
               )}
             </button>
           ))}

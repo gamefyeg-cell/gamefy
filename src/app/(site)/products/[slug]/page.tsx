@@ -36,7 +36,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     prisma.product.findMany({
       where: { active: true, categoryId: product.categoryId, id: { not: product.id } },
       orderBy: { popularityScore: "desc" },
-      take: 6,
+      take: 5,
       select: { id: true, slug: true, title: true, type: true, coverUrl: true, images: true, categoryId: true, variants: { select: { price: true, currency: true } } },
     }),
   ]);
@@ -56,19 +56,23 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   const images = parseStringArray(product.images);
   const buyerNotice = product.buyerNotice ?? product.category.defaultBuyerNotice;
-  const cheapest = product.variants.length ? product.variants.reduce((min, v) => (v.price < min.price ? v : min)) : null;
-  // Distinct platforms this listing is sold for — used for the header
-  // badge when there's no single product-level platform (multi-platform
-  // listing); the buy box has the actual per-platform picker.
+
+  // Distinct platforms this listing is sold for (the buy box has the real
+  // per-platform picker; this is just the sub-title line).
   const variantPlatforms = Array.from(
     new Set(product.variants.map((v) => v.platform).filter((p): p is string => Boolean(p)))
   );
+  const platformText = product.platform
+    ? labelFor(PLATFORMS, product.platform)
+    : variantPlatforms.map((p) => labelFor(PLATFORMS, p)).join(" · ");
+
+  const typeWord = product.type === "GAME" ? "game" : product.type === "SUBSCRIPTION" ? "subscription" : "product";
 
   return (
-    <div className="flex flex-col gap-14">
+    <div className="flex flex-col gap-12">
       <div>
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-xs text-slate-500 mb-4">
+        <nav className="mb-6 flex items-center gap-1.5 text-xs text-slate-500">
           <Link href="/" className="hover:text-slate-300 transition-colors">
             Home
           </Link>
@@ -77,58 +81,55 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             {product.category.name}
           </Link>
           <span className="text-slate-700">/</span>
-          <span className="text-slate-400 truncate max-w-[200px]">{product.title}</span>
+          <span className="max-w-[220px] truncate text-slate-400">{product.title}</span>
         </nav>
 
-        <div className="grid md:grid-cols-2 gap-10">
-          <Reveal className="flex flex-col gap-5">
-            <ProductGallery images={images} videoId={product.videoUrl} title={product.title} />
+        {/* Title block — full width, above the split */}
+        <div className="mb-7 flex flex-col gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent-soft">
+            {product.category.name} · {labelFor(PRODUCT_TYPES, product.type)}
+          </span>
+          <h1 className="font-heading text-2xl font-semibold leading-tight tracking-tight text-white md:text-[30px]">
+            {product.title}
+          </h1>
+          {(product.publisher || platformText) && (
+            <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-slate-400">
+              {product.publisher && <span>{product.publisher}</span>}
+              {product.publisher && platformText && <span className="text-slate-700">•</span>}
+              {platformText && <span>{platformText}</span>}
+            </p>
+          )}
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="badge bg-accent/10 text-accent-soft border border-accent/30">
-                  {labelFor(PRODUCT_TYPES, product.type)}
-                </span>
-                {product.platform ? (
-                  <span className="badge bg-surface2 border border-border text-slate-300">
-                    {labelFor(PLATFORMS, product.platform)}
-                  </span>
-                ) : (
-                  variantPlatforms.length > 0 && (
-                    <span className="badge bg-surface2 border border-border text-slate-300">
-                      {variantPlatforms.map((p) => labelFor(PLATFORMS, p)).join(" · ")}
-                    </span>
-                  )
-                )}
-                {cheapest && (
-                  <span className="badge bg-gold/10 text-gold border border-gold/30">
-                    from {new Intl.NumberFormat("en-US", { style: "currency", currency: cheapest.currency, currencyDisplay: "narrowSymbol" }).format(cheapest.price)}
-                  </span>
-                )}
-              </div>
-
-              <h1 className="font-heading font-bold text-3xl md:text-4xl uppercase leading-[1.05] tracking-wide text-white">
-                {product.title}
-              </h1>
-              {product.publisher && <p className="text-sm text-slate-500">by {product.publisher}</p>}
-            </div>
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
+          <div className="flex min-w-0 flex-col gap-6">
+            <Reveal>
+              <ProductGallery images={images} videoId={product.videoUrl} title={product.title} cover={product.coverUrl} />
+            </Reveal>
 
             {buyerNotice && (
-              <div className="notice-box">
-                <div className="text-warn font-semibold text-sm mb-1">⚠ Before You Buy</div>
-                <div className="text-sm text-slate-200">{renderLiteMarkdown(buyerNotice)}</div>
-              </div>
+              <Reveal>
+                <div className="notice-box">
+                  <div className="mb-1 text-sm font-semibold text-warn">⚠ Before you buy</div>
+                  <div className="text-sm leading-relaxed text-slate-200">{renderLiteMarkdown(buyerNotice)}</div>
+                </div>
+              </Reveal>
             )}
 
             {product.description && (
-              <div className="card p-5 text-sm text-slate-300 leading-relaxed">
-                {renderLiteMarkdown(product.description)}
-              </div>
+              <Reveal>
+                <section className="flex flex-col gap-3">
+                  <h2 className="font-heading text-lg font-semibold text-white">About this {typeWord}</h2>
+                  <div className="max-w-[64ch] space-y-1 text-[13.5px] leading-7 text-slate-300">
+                    {renderLiteMarkdown(product.description)}
+                  </div>
+                </section>
+              </Reveal>
             )}
-          </Reveal>
+          </div>
 
           <div>
-            <Reveal delay={0.1} className="md:sticky md:top-20">
+            <Reveal delay={0.1} className="lg:sticky lg:top-24">
               <ProductBuyBox variants={variantsWithDiscount} customFields={product.customFields} />
             </Reveal>
           </div>
@@ -137,13 +138,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
       {related.length > 0 && (
         <Reveal>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-heading font-bold uppercase tracking-wide text-white">You might also like</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-heading text-xl font-semibold tracking-tight text-white">More in {product.category.name}</h2>
             <Link href={`/categories/${product.category.slug}`} className="text-sm text-accent-soft hover:text-accent">
               See all →
             </Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {related.map((p) => {
               const match = pickBestDiscountForCard(activeDiscounts, p, relatedCollectionIds.get(p.id) ?? []);
               return (
