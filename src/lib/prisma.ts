@@ -26,6 +26,14 @@ function runtimeDatasourceUrl(): string | undefined {
     const url = new URL(base);
     if (!url.searchParams.has("connection_limit")) url.searchParams.set("connection_limit", CONNECTION_LIMIT);
     if (!url.searchParams.has("pool_timeout")) url.searchParams.set("pool_timeout", POOL_TIMEOUT);
+    // Supavisor / PgBouncer transaction pooler (port 6543) recycles server
+    // connections between clients, so Prisma's named prepared statements
+    // collide -> `42P05: prepared statement "s0" already exists`. This flag
+    // makes Prisma stop using them. Forced here so a missing `?pgbouncer=true`
+    // in DATABASE_URL can't reintroduce the bug.
+    if (url.port === "6543" && !url.searchParams.has("pgbouncer")) {
+      url.searchParams.set("pgbouncer", "true");
+    }
     return url.toString();
   } catch {
     return base; // not a parseable URL (e.g. SQLite "file:./dev.db") — leave it alone
