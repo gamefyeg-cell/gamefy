@@ -99,17 +99,25 @@ export default async function AdminProductsPage() {
                   </select>
                   <p className="hint">For your own organization/filtering only — it doesn't limit which sale modes you can add below.</p>
                 </div>
-                <div>
-                  <label className="label">Platform</label>
-                  <select name="platform" className="input" defaultValue="">
-                    <option value="">— Not set —</option>
+                <div className="md:col-span-2">
+                  <label className="label">Platforms</label>
+                  <div className="flex flex-wrap gap-2">
                     {PLATFORMS.map((p) => (
-                      <option key={p.value} value={p.value}>
+                      <label
+                        key={p.value}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface2 px-3 py-1.5 text-sm text-slate-300 cursor-pointer transition-colors has-[:checked]:border-accent has-[:checked]:text-white"
+                      >
+                        <input type="checkbox" name="platforms" value={p.value} className="h-3.5 w-3.5" />
                         {p.label}
-                      </option>
+                      </label>
                     ))}
-                  </select>
-                  <p className="hint">Shown as a small badge on the product page (e.g. "PC"). Leave unset if it doesn't apply.</p>
+                  </div>
+                  <p className="hint">
+                    Tick every platform this game is sold for. Pick more than one (e.g. PC + PlayStation) and
+                    Step&nbsp;4 creates one purchase option per platform — same cover, description and gallery,
+                    each independently priced and stocked. Buyers pick the platform on the product page. Leave
+                    all unticked if platform doesn't apply.
+                  </p>
                 </div>
               </div>
             </div>
@@ -188,6 +196,8 @@ export default async function AdminProductsPage() {
               <p className="text-xs text-slate-500 -mt-2">
                 Sets up the first purchase option for this product — its price, currency, how it's delivered, and
                 where it can be activated. Leave "Price" blank to create a bare listing with no purchase option yet.
+                If you ticked more than one platform above, these values seed one option per platform — adjust each
+                one's price and stock afterward from the product page.
               </p>
               <div className="grid md:grid-cols-3 gap-5">
                 <div>

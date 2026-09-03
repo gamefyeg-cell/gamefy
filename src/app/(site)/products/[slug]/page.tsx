@@ -57,6 +57,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const images = parseStringArray(product.images);
   const buyerNotice = product.buyerNotice ?? product.category.defaultBuyerNotice;
   const cheapest = product.variants.length ? product.variants.reduce((min, v) => (v.price < min.price ? v : min)) : null;
+  // Distinct platforms this listing is sold for — used for the header
+  // badge when there's no single product-level platform (multi-platform
+  // listing); the buy box has the actual per-platform picker.
+  const variantPlatforms = Array.from(
+    new Set(product.variants.map((v) => v.platform).filter((p): p is string => Boolean(p)))
+  );
 
   return (
     <div className="flex flex-col gap-14">
@@ -83,10 +89,16 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 <span className="badge bg-accent/10 text-accent-soft border border-accent/30">
                   {labelFor(PRODUCT_TYPES, product.type)}
                 </span>
-                {product.platform && (
+                {product.platform ? (
                   <span className="badge bg-surface2 border border-border text-slate-300">
                     {labelFor(PLATFORMS, product.platform)}
                   </span>
+                ) : (
+                  variantPlatforms.length > 0 && (
+                    <span className="badge bg-surface2 border border-border text-slate-300">
+                      {variantPlatforms.map((p) => labelFor(PLATFORMS, p)).join(" · ")}
+                    </span>
+                  )
                 )}
                 {cheapest && (
                   <span className="badge bg-gold/10 text-gold border border-gold/30">

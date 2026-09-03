@@ -54,6 +54,18 @@ function parseYoutubeId(raw: string): string | null {
   return null;
 }
 
+/// The product-level `platform` badge. The Add Product form sends a
+/// multi-checkbox `platforms` (one purchase option is generated per
+/// platform); the Edit form sends a single `platform` select. When several
+/// platforms are chosen there's no single badge to show, so it's cleared
+/// and the storefront's platform picker carries the distinction instead.
+function resolveProductPlatform(formData: FormData): string | null {
+  const multi = formData.getAll("platforms").map(String).filter(Boolean);
+  if (multi.length === 1) return multi[0];
+  if (multi.length > 1) return null;
+  return String(formData.get("platform") ?? "") || null;
+}
+
 function productFieldsFrom(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const slugRaw = String(formData.get("slug") ?? "").trim();
@@ -66,7 +78,7 @@ function productFieldsFrom(formData: FormData) {
     buyerNotice: String(formData.get("buyerNotice") ?? "") || null,
     requiresNoticeAck: formData.get("requiresNoticeAck") === "on",
     publisher: String(formData.get("publisher") ?? "") || null,
-    platform: String(formData.get("platform") ?? "") || null,
+    platform: resolveProductPlatform(formData),
     tags: csvToJsonArray(String(formData.get("tags") ?? "")),
     coverUrl: String(formData.get("coverUrl") ?? "") || null,
     images: parseImagesField(String(formData.get("images") ?? "[]")),
@@ -89,32 +101,42 @@ export async function createProductAction(formData: FormData) {
   const priceRaw = String(formData.get("price") ?? "").trim();
   const wantsQuickVariant = priceRaw !== "";
 
+  // Platforms ticked in "Basics" — one purchase option per platform
+  // (same price/delivery/stock to start; each is editable afterward), so
+  // "this game on PC and PlayStation" is one listing, not two products.
+  // Falls back to a single platform-less option when none were ticked.
+  const selectedPlatforms = formData.getAll("platforms").map(String).filter(Boolean);
+  const variantPlatforms: (string | null)[] = selectedPlatforms.length ? selectedPlatforms : [null];
+
   const created = await prisma.$transaction(async (tx) => {
     const product = await tx.product.create({ data });
 
     if (wantsQuickVariant) {
       const stockQtyRaw = String(formData.get("stockQty") ?? "");
-      let sku = `${data.slug}-default`;
-      // SKUs are unique — fall back to a short random suffix on collision.
-      if (await tx.productVariant.findUnique({ where: { sku } })) {
-        sku = `${data.slug}-${Math.random().toString(36).slice(2, 7)}`;
+      const base = {
+        price: Number(priceRaw) || 0,
+        currency: String(formData.get("currency") ?? "EGP"),
+        durationLabel: String(formData.get("durationLabel") ?? "").trim() || null,
+        saleMode: String(formData.get("saleMode") ?? "KEY"),
+        deliveryMethod: String(formData.get("deliveryMethod") ?? "AUTO_KEY"),
+        stockMode: String(formData.get("stockMode") ?? "MANUAL"),
+        stockQty: stockQtyRaw ? Number(stockQtyRaw) : null,
+        outOfStockMessage: String(formData.get("outOfStockMessage") ?? "") || null,
+        activationRegionId: String(formData.get("activationRegionId") ?? "") || null,
+        active: true,
+      };
+
+      for (const platform of variantPlatforms) {
+        const suffix = platform ? slugify(platform) : "default";
+        let sku = `${data.slug}-${suffix}`;
+        // SKUs are unique — fall back to a short random suffix on collision.
+        if (await tx.productVariant.findUnique({ where: { sku } })) {
+          sku = `${data.slug}-${suffix}-${Math.random().toString(36).slice(2, 7)}`;
+        }
+        await tx.productVariant.create({
+          data: { productId: product.id, sku, platform: platform ?? null, ...base },
+        });
       }
-      await tx.productVariant.create({
-        data: {
-          productId: product.id,
-          sku,
-          price: Number(priceRaw) || 0,
-          currency: String(formData.get("currency") ?? "EGP"),
-          durationLabel: String(formData.get("durationLabel") ?? "").trim() || null,
-          saleMode: String(formData.get("saleMode") ?? "KEY"),
-          deliveryMethod: String(formData.get("deliveryMethod") ?? "AUTO_KEY"),
-          stockMode: String(formData.get("stockMode") ?? "MANUAL"),
-          stockQty: stockQtyRaw ? Number(stockQtyRaw) : null,
-          outOfStockMessage: String(formData.get("outOfStockMessage") ?? "") || null,
-          activationRegionId: String(formData.get("activationRegionId") ?? "") || null,
-          active: true,
-        },
-      });
     }
 
     return product;
@@ -122,7 +144,7 @@ export async function createProductAction(formData: FormData) {
 
   await logAudit(session.userId, "product.create", `Product:${created.id}`, null, {
     ...created,
-    quickVariantCreated: wantsQuickVariant,
+    quickVariantsCreated: wantsQuickVariant ? variantPlatforms.length : 0,
   });
 
   revalidatePath("/admin/products");

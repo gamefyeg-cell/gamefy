@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { formatMoney } from "@/lib/format";
-import { labelFor, SALE_MODES, REGION_LOCK_TYPES, ACCOUNT_ACCESS_LEVELS } from "@/lib/enums";
+import { labelFor, SALE_MODES, REGION_LOCK_TYPES, ACCOUNT_ACCESS_LEVELS, PLATFORMS } from "@/lib/enums";
 import { addToCartAction } from "@/lib/actions/site";
 import { springs, tapFeedback } from "@/lib/motion";
 import { TRUST_SIGNALS } from "@/lib/trust-signals";
@@ -48,6 +48,16 @@ const SALE_MODE_TAB_LABEL: Record<string, string> = {
   TOPUP_DIRECT: "Top Up",
 };
 
+const PLATFORM_ICON: Record<string, string> = {
+  PC: "🖥️",
+  PlayStation: "🎮",
+  Xbox: "🎮",
+  "Nintendo Switch": "🎮",
+  Mobile: "📱",
+  Mac: "🖥️",
+  Linux: "🐧",
+};
+
 export default function ProductBuyBox({
   variants,
   customFields,
@@ -58,27 +68,58 @@ export default function ProductBuyBox({
   const router = useRouter();
   const saleModes = useMemo(() => Array.from(new Set(variants.map((v) => v.saleMode))), [variants]);
   const [activeSaleMode, setActiveSaleMode] = useState(saleModes[0]);
-  const variantsForMode = variants.filter((v) => v.saleMode === activeSaleMode);
-  // If every variant in this sale mode has its own distinct duration label
+  const variantsForMode = useMemo(
+    () => variants.filter((v) => v.saleMode === activeSaleMode),
+    [variants, activeSaleMode]
+  );
+
+  // One product can be sold for several platforms (e.g. a game on PC *and*
+  // PlayStation) — one listing, one cover/description, but independently
+  // priced and stocked variants. When every variant in this sale mode
+  // carries a platform and there's more than one, surface it as its own
+  // picker instead of burying it in the generic "Choose option" dropdown.
+  const platforms = useMemo(() => {
+    const list = Array.from(new Set(variantsForMode.map((v) => v.platform).filter(Boolean))) as string[];
+    return list.length > 1 && variantsForMode.every((v) => v.platform) ? list : [];
+  }, [variantsForMode]);
+  const [activePlatform, setActivePlatform] = useState<string | null>(platforms[0] ?? null);
+
+  const scopedVariants = useMemo(
+    () => (platforms.length ? variantsForMode.filter((v) => v.platform === activePlatform) : variantsForMode),
+    [platforms, variantsForMode, activePlatform]
+  );
+
+  // If every variant in scope has its own distinct duration label
   // (e.g. "1 Month" / "3 Months" / "1 Year") and nothing else differs, show
   // it as a proper plan picker instead of the generic "Choose option"
   // dropdown — reads like real subscription pricing.
   const durations = useMemo(
-    () => Array.from(new Set(variantsForMode.map((v) => v.durationLabel).filter(Boolean))),
-    [variantsForMode]
+    () => Array.from(new Set(scopedVariants.map((v) => v.durationLabel).filter(Boolean))),
+    [scopedVariants]
   );
-  const usesDurationPicker = durations.length > 1 && durations.length === variantsForMode.length;
-  const [variantId, setVariantId] = useState(variantsForMode[0]?.id ?? "");
+  const usesDurationPicker = durations.length > 1 && durations.length === scopedVariants.length;
+  const [variantId, setVariantId] = useState(scopedVariants[0]?.id ?? "");
   const [qty, setQty] = useState(1);
   const [pending, setPending] = useState(false);
   const [added, setAdded] = useState(false);
 
-  const variant = variants.find((v) => v.id === variantId) ?? variantsForMode[0];
+  const variant = variants.find((v) => v.id === variantId) ?? scopedVariants[0];
 
   function switchMode(mode: string) {
     setActiveSaleMode(mode);
-    const first = variants.find((v) => v.saleMode === mode);
+    const modeVariants = variants.filter((v) => v.saleMode === mode);
+    const modePlatforms = Array.from(new Set(modeVariants.map((v) => v.platform).filter(Boolean))) as string[];
+    const usePlatformPicker = modePlatforms.length > 1 && modeVariants.every((v) => v.platform);
+    const nextPlatform = usePlatformPicker ? modePlatforms[0] : null;
+    setActivePlatform(nextPlatform);
+    const first = usePlatformPicker ? modeVariants.find((v) => v.platform === nextPlatform) : modeVariants[0];
     setVariantId(first?.id ?? "");
+    setAdded(false);
+  }
+
+  function selectPlatform(p: string) {
+    setActivePlatform(p);
+    setVariantId(variantsForMode.find((v) => v.platform === p)?.id ?? "");
     setAdded(false);
   }
 
@@ -132,11 +173,40 @@ export default function ProductBuyBox({
         </div>
       )}
 
+      {platforms.length > 0 && (
+        <div>
+          <label className="label">Choose platform</label>
+          <div className="flex flex-wrap gap-2">
+            {platforms.map((p) => (
+              <motion.button
+                key={p}
+                type="button"
+                onClick={() => selectPlatform(p)}
+                whileTap={tapFeedback}
+                className={`relative btn !px-3 !py-1.5 text-xs ${
+                  activePlatform === p ? "text-white" : "bg-surface2 text-slate-300 border border-border"
+                }`}
+              >
+                {activePlatform === p && (
+                  <motion.span
+                    layoutId="platformTabPill"
+                    transition={springs.snappy}
+                    className="absolute inset-0 bg-accent rounded-lg -z-10"
+                  />
+                )}
+                {PLATFORM_ICON[p] ? `${PLATFORM_ICON[p]} ` : ""}
+                {labelFor(PLATFORMS, p)}
+              </motion.button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {usesDurationPicker ? (
         <div>
           <label className="label">Choose plan</label>
           <div className="flex flex-wrap gap-2">
-            {variantsForMode.map((v) => (
+            {scopedVariants.map((v) => (
               <motion.button
                 key={v.id}
                 type="button"
@@ -163,7 +233,7 @@ export default function ProductBuyBox({
           </div>
         </div>
       ) : (
-        variantsForMode.length > 1 && (
+        scopedVariants.length > 1 && (
           <div>
             <label className="label">Choose option</label>
             <select
@@ -174,9 +244,11 @@ export default function ProductBuyBox({
                 setAdded(false);
               }}
             >
-              {variantsForMode.map((v) => (
+              {scopedVariants.map((v) => (
                 <option key={v.id} value={v.id}>
-                  {[v.durationLabel, v.platform, v.edition, v.activationRegion?.name].filter(Boolean).join(" · ") || v.sku}
+                  {[v.durationLabel, platforms.length ? null : v.platform, v.edition, v.activationRegion?.name]
+                    .filter(Boolean)
+                    .join(" · ") || v.sku}
                   {" — "}
                   {formatMoney(v.price, v.currency)}
                 </option>
