@@ -21,7 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         {!isAdmin ? (
           <div className="min-h-screen flex items-center justify-center p-4">{children}</div>
         ) : (
-          <div className="flex flex-col md:flex-row">
+          <div className="flex flex-col md:flex-row min-h-screen items-stretch">
             <AdminMobileChrome>
               <AdminSidebar email={session.email} role={session.role} />
             </AdminMobileChrome>

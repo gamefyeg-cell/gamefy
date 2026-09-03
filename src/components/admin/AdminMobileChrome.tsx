@@ -57,7 +57,7 @@ export default function AdminMobileChrome({ children }: { children: React.ReactN
       )}
 
       <div
-        className={`fixed md:static inset-y-0 left-0 z-50 transition-transform duration-200 md:translate-x-0 ${
+        className={`a-sidebar-wrap fixed inset-y-0 left-0 z-50 transition-transform duration-200 md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >

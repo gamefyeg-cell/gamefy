@@ -111,7 +111,7 @@ export default function VariantForm({
         <div data-stepkey="basics" hidden={currentKey !== "basics"} className="a-step-panel">
           <StepHead title="The essentials">Price and how it's sold. Everything else has a default on the next steps.</StepHead>
 
-          <Field label="SKU" tip="Your internal code for this exact option. Must be unique across the store." required>
+          <Field label="SKU" full tip="Your internal code for this exact option. Must be unique across the store." required>
             <input
               name="sku"
               required
@@ -131,22 +131,20 @@ export default function VariantForm({
             </select>
           </Field>
 
-          <div className="a-pair">
-            <Field label="Price" required>
-              <input name="price" type="number" step="0.01" min="0" required className="a-input" defaultValue={defaults.price ?? ""} />
-            </Field>
-            <Field label="Currency">
-              <select name="currency" className="a-select" defaultValue={defaults.currency ?? DEFAULT_CURRENCY} required>
-                {CURRENCIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.code}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
+          <Field label="Price" required>
+            <input name="price" type="number" step="0.01" min="0" required className="a-input" defaultValue={defaults.price ?? ""} />
+          </Field>
+          <Field label="Currency">
+            <select name="currency" className="a-select" defaultValue={defaults.currency ?? DEFAULT_CURRENCY} required>
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-          <Field label="How it's sold" tip="Key = buyer redeems a code. Full / Shared Account = you hand over login details. Direct Top-Up = you credit their game account.">
+          <Field label="How it's sold" full tip="Key = buyer redeems a code. Full / Shared Account = you hand over login details. Direct Top-Up = you credit their game account.">
             <select
               name="saleMode"
               className="a-select"
@@ -251,7 +249,7 @@ export default function VariantForm({
         <div data-stepkey="region" hidden={currentKey !== "region"} className="a-step-panel">
           <StepHead title="Region &amp; notes">All optional. Skip straight to save if none apply.</StepHead>
 
-          <Field label="Where it works" tip="Global, a zone (Europe, MENA…), or one country. Separate from the price currency.">
+          <Field label="Where it works" full tip="Global, a zone (Europe, MENA…), or one country. Separate from the price currency.">
             <ActivationRegionSelect name="activationRegionId" regions={activationRegions} defaultValue={defaults.activationRegionId ?? ""} />
           </Field>
           <Field label="Region strictness" tip="How strict the region above is — “works anywhere, may need a VPN” vs. strictly locked.">
@@ -282,19 +280,19 @@ export default function VariantForm({
             </Field>
           )}
           {accountFields && (
-            <Field label="Account note" hint="Shown with the credentials, e.g. “don't change the email or 2FA”.">
+            <Field label="Account note" full hint="Shown with the credentials, e.g. “don't change the email or 2FA”.">
               <input name="accountDeliveryNote" className="a-input" defaultValue={defaults.accountDeliveryNote ?? ""} />
             </Field>
           )}
 
-          <Field label="Activation instructions" hint="Optional note near the price.">
+          <Field label="Activation instructions" full hint="Optional note near the price.">
             <input name="activationInstructions" className="a-input" defaultValue={defaults.activationInstructions ?? ""} />
           </Field>
-          <Field label="Redemption instructions" hint="Optional — how to redeem what they bought.">
+          <Field label="Redemption instructions" full hint="Optional — how to redeem what they bought.">
             <input name="redemptionInstructions" className="a-input" defaultValue={defaults.redemptionInstructions ?? ""} />
           </Field>
 
-          <label className="flex items-start gap-2">
+          <label className="a-span-2 flex items-start gap-2">
             <input type="checkbox" name="active" defaultChecked={defaults.active ?? true} className="mt-0.5" />
             <span>
               <span style={{ color: "var(--a-text)" }}>Show on the storefront</span>

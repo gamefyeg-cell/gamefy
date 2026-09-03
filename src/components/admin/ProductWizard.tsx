@@ -142,7 +142,7 @@ export default function ProductWizard({
         {/* -------- Name -------- */}
         <div data-stepkey="basics" hidden={currentKey !== "basics"} className="a-step-panel">
           <StepHead title="What are you selling?">Just the name and where it sits in the store.</StepHead>
-          <Field label="Product name" required>
+          <Field label="Product name" required full>
             <input name="title" required className="a-input" placeholder="e.g. EA SPORTS FC 25" />
           </Field>
           <Field label="Category" required>
@@ -171,10 +171,10 @@ export default function ProductWizard({
         {/* -------- Images -------- */}
         <div data-stepkey="media" hidden={currentKey !== "media"} className="a-step-panel">
           <StepHead title="Add a picture">Shared by every option — you set this once.</StepHead>
-          <Field label="Cover art" hint="Portrait, like a game case. Optional — the first gallery image is used if blank.">
+          <Field label="Cover art" hint="Portrait, like a game case. Optional — the first gallery image is used if blank." full>
             <SingleImageUploader name="coverUrl" portrait />
           </Field>
-          <Field label="Gallery" hint="Screenshots / wide shots for the product page. One is fine.">
+          <Field label="Gallery" hint="Screenshots / wide shots for the product page. One is fine." full>
             <ImageUploader name="images" />
           </Field>
           <details className="a-more">
@@ -190,10 +190,10 @@ export default function ProductWizard({
         {/* -------- Description -------- */}
         <div data-stepkey="description" hidden={currentKey !== "description"} className="a-step-panel">
           <StepHead title="Describe it">A short blurb buyers read on the product page.</StepHead>
-          <Field label="Description">
+          <Field label="Description" full>
             <RichTextArea name="description" rows={5} placeholder={"Standard edition.\n- Full game, latest content\n- Instant delivery"} />
           </Field>
-          <label className="flex items-start gap-2">
+          <label className="a-span-2 flex items-start gap-2">
             <input type="checkbox" name="active" defaultChecked className="mt-0.5" />
             <span>
               <span style={{ color: "var(--a-text)" }}>Show on the storefront</span>
@@ -217,7 +217,7 @@ export default function ProductWizard({
           </details>
 
           <hr className="a-divider" />
-          <label className="flex items-start gap-2">
+          <label className="a-span-2 flex items-start gap-2">
             <input type="checkbox" checked={addPricing} onChange={(e) => setAddPricing(e.target.checked)} className="mt-0.5" />
             <span>
               <span style={{ color: "var(--a-text)" }}>Set a price now</span>
@@ -232,7 +232,7 @@ export default function ProductWizard({
             <StepHead title="Which platforms?">
               You’ll set a price for each one on its own step. Leave empty for a single option.
             </StepHead>
-            <div className="flex flex-wrap gap-2">
+            <div className="a-span-2 flex flex-wrap gap-2">
               {PLATFORMS.map((p) => (
                 <label key={p.value} className="a-chip">
                   <input
@@ -244,7 +244,7 @@ export default function ProductWizard({
                 </label>
               ))}
             </div>
-            <p className="a-hint">
+            <p className="a-span-2 a-hint">
               {platforms.length === 0
                 ? "→ one price step"
                 : `→ ${platforms.length} step${platforms.length === 1 ? "" : "s"}: ${platforms
@@ -267,22 +267,20 @@ export default function ProductWizard({
                 </StepHead>
                 <input type="hidden" name={`v${i}_platform`} value={pk} />
 
-                <div className="a-pair">
-                  <Field label="Price" required>
-                    <input name={`v${i}_price`} type="number" step="0.01" min="0" required className="a-input" placeholder="1200" />
-                  </Field>
-                  <Field label="Currency">
-                    <select name={`v${i}_currency`} defaultValue={DEFAULT_CURRENCY} className="a-select">
-                      {CURRENCIES.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.code}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
+                <Field label="Price" required>
+                  <input name={`v${i}_price`} type="number" step="0.01" min="0" required className="a-input" placeholder="1200" />
+                </Field>
+                <Field label="Currency">
+                  <select name={`v${i}_currency`} defaultValue={DEFAULT_CURRENCY} className="a-select">
+                    {CURRENCIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.code}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-                <Field label="How it's sold" tip="Key = buyer redeems a code. Full / Shared Account = you hand over login details. Direct Top-Up = you credit their game account.">
+                <Field label="How it's sold" full tip="Key = buyer redeems a code. Full / Shared Account = you hand over login details. Direct Top-Up = you credit their game account.">
                   <select
                     name={`v${i}_saleMode`}
                     className="a-select"
@@ -369,7 +367,7 @@ export default function ProductWizard({
                       </Field>
                     )}
 
-                    <Field label="Where it works" tip="Global, a zone (Europe, MENA…), or one country. Separate from the price currency.">
+                    <Field label="Where it works" full tip="Global, a zone (Europe, MENA…), or one country. Separate from the price currency.">
                       <ActivationRegionSelect name={`v${i}_activationRegionId`} regions={activationRegions} />
                     </Field>
                     <Field label="Region strictness" tip="How strict the region above is — “works anywhere, may need a VPN” vs. strictly locked.">
@@ -400,15 +398,15 @@ export default function ProductWizard({
                       </Field>
                     )}
                     {accountFields && (
-                      <Field label="Account note" hint="Shown with the credentials, e.g. “don't change the email or 2FA”.">
+                      <Field label="Account note" full hint="Shown with the credentials, e.g. “don't change the email or 2FA”.">
                         <input name={`v${i}_accountDeliveryNote`} className="a-input" />
                       </Field>
                     )}
 
-                    <Field label="Activation instructions" hint="Optional note near the price.">
+                    <Field label="Activation instructions" full hint="Optional note near the price.">
                       <input name={`v${i}_activationInstructions`} className="a-input" />
                     </Field>
-                    <Field label="Redemption instructions" hint="Optional — how to redeem what they bought.">
+                    <Field label="Redemption instructions" full hint="Optional — how to redeem what they bought.">
                       <input name={`v${i}_redemptionInstructions`} className="a-input" />
                     </Field>
                   </div>
@@ -420,7 +418,7 @@ export default function ProductWizard({
         {/* -------- Review -------- */}
         <div data-stepkey="review" hidden={currentKey !== "review"} className="a-step-panel">
           <StepHead title="Ready">Create it now — tweak anything from the product page afterward.</StepHead>
-          <div className="grid gap-2 sm:grid-cols-2 text-sm">
+          <div className="a-span-2 grid gap-2 sm:grid-cols-2 text-sm">
             <div>
               <span className="a-sub block">Type</span>
               {labelFor(PRODUCT_TYPES, type)}
@@ -432,11 +430,11 @@ export default function ProductWizard({
           </div>
 
           {!addPricing ? (
-            <span className="a-badge a-badge-warn" style={{ alignSelf: "flex-start" }}>
+            <span className="a-span-2 a-badge a-badge-warn" style={{ justifySelf: "start" }}>
               Draft — no price yet
             </span>
           ) : (
-            <div className="a-list">
+            <div className="a-span-2 a-list">
               {review.map((r, i) => (
                 <div key={i} className="a-list-row">
                   <span style={{ color: "var(--a-text)", fontWeight: 550 }}>
