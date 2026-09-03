@@ -4,6 +4,7 @@ import { parseJson } from "@/lib/json";
 import { getActiveDiscounts, buildCollectionIdsMap, pickBestDiscountForCard } from "@/lib/discounts";
 import ProductCard from "@/components/storefront/ProductCard";
 import FlashCountdown from "@/components/storefront/FlashCountdown";
+import HeroBackdrop from "@/components/storefront/HeroBackdrop";
 import HeroPosterFan from "@/components/storefront/HeroPosterFan";
 import { TRUST_SIGNALS } from "@/lib/trust-signals";
 
@@ -89,55 +90,50 @@ async function HeroSlider({ block }: { block: Block }) {
   }
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-surface2 via-surface to-bg">
-      {/* Soft ambient light — contained in the panel, never behind the copy. */}
-      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent/20 blur-[110px]" />
-      <div className="pointer-events-none absolute -bottom-28 left-1/4 h-64 w-64 rounded-full bg-gold/10 blur-[120px]" />
+    <section className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-surface2">
+      {/* Background photo (bg.png / bg2.png) stays — the copy just gets its
+          own readable surface on top of it instead of sitting raw on the image. */}
+      <HeroBackdrop imageUrl={slide.imageUrl} alt={slide.title} />
 
-      <div className="relative grid items-center gap-8 p-6 sm:p-10 lg:grid-cols-2 lg:gap-10">
-        {/* Copy sits on the solid panel — always legible. */}
-        <div className="flex flex-col items-start gap-5">
+      <div className="relative grid items-center gap-8 p-5 sm:p-8 lg:grid-cols-2 lg:gap-10 lg:p-10">
+        {/* Frosted panel — keeps the headline legible over any photo. */}
+        <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-bg/55 p-6 shadow-2xl backdrop-blur-md sm:p-8">
           {slide.eyebrow && <span className="eyebrow-badge">{slide.eyebrow}</span>}
 
-          <h2 className="font-display text-[34px] leading-[1.03] text-white sm:text-5xl lg:text-[56px]">
-            {(titleLines.length ? titleLines : ["Your games,", "delivered in seconds"]).map((line, i, arr) => (
+          <h2 className="mt-4 font-display text-[32px] leading-[1.05] text-white sm:text-[40px] lg:text-5xl">
+            {(titleLines.length ? titleLines : ["Instant", "Game Keys", "& Accounts"]).map((line, i, arr) => (
               <span key={i} className={`block ${arr.length > 1 && i === arr.length - 1 ? "text-accent-soft" : ""}`}>
                 {line}
               </span>
             ))}
           </h2>
 
-          {slide.subtitle && <p className="max-w-md text-sm leading-relaxed text-slate-400">{slide.subtitle}</p>}
+          {slide.subtitle && <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-300">{slide.subtitle}</p>}
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3">
             <Link href={slide.linkUrl ?? "/"} className="btn-primary !rounded-xl !px-6 !py-3 text-[15px]">
               {slide.ctaText ?? "Shop now"}
             </Link>
-            <Link href="/" className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
+            <Link href="/" className="text-sm font-medium text-slate-300 transition-colors hover:text-white">
               Browse everything →
             </Link>
           </div>
 
-          <div className="flex flex-wrap gap-x-5 gap-y-2 pt-3 text-xs text-slate-500">
+          <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/10 pt-4 text-xs">
             {TRUST_SIGNALS.map((t) => (
               <span key={t.title} className="inline-flex items-center gap-1.5">
-                <span className="text-sm">{t.icon}</span>
+                <span className="text-sm" aria-hidden>
+                  {t.icon}
+                </span>
                 <span className="text-slate-300">{t.title}</span>
               </span>
             ))}
           </div>
         </div>
 
-        {/* Visual has its own space. */}
-        <div className="relative flex min-h-[220px] items-center justify-center lg:min-h-[320px]">
-          {slide.imageUrl ? (
-            <div className="relative aspect-[4/3] w-full max-w-md overflow-hidden rounded-xl border border-white/10">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={slide.imageUrl} alt={slide.title ?? ""} className="h-full w-full object-cover" />
-            </div>
-          ) : (
-            <HeroPosterFan products={fanProducts} />
-          )}
+        {/* Real product art — the centrepiece, over the photo. */}
+        <div className="flex min-h-[240px] items-center justify-center lg:min-h-[340px]">
+          <HeroPosterFan products={fanProducts} />
         </div>
       </div>
     </section>
