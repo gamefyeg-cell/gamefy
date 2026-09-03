@@ -4,24 +4,20 @@ import { useState } from "react";
 
 type Slide = { type: "image"; url: string } | { type: "video"; videoId: string };
 
-/// Product media viewer — the uploaded photos plus an optional YouTube
-/// trailer. The active image sits `object-contain` over a blurred copy of
-/// itself, so portrait box-art and wide screenshots both display without
-/// being cropped or leaving a dead grey box.
+/// Product media viewer — the uploaded screenshots plus an optional
+/// YouTube trailer. Images fill the frame edge to edge (object-cover);
+/// the portrait store cover is NOT shown here, it's the card art only.
 export default function ProductGallery({
   images,
   videoId,
   title,
-  cover,
 }: {
   images: string[];
   videoId: string | null;
   title: string;
-  cover?: string | null;
 }) {
-  const ordered = cover && !images.includes(cover) ? [cover, ...images] : images;
   const slides: Slide[] = [
-    ...ordered.map((url) => ({ type: "image" as const, url })),
+    ...images.map((url) => ({ type: "image" as const, url })),
     ...(videoId ? [{ type: "video" as const, videoId }] : []),
   ];
   const [active, setActive] = useState(0);
@@ -29,7 +25,7 @@ export default function ProductGallery({
 
   if (!current) {
     return (
-      <div className="grid aspect-[16/10] place-items-center rounded-xl border border-border bg-surface2">
+      <div className="grid aspect-[16/10] place-items-center rounded-xl bg-surface2">
         <span className="font-heading text-6xl text-slate-700">{title.slice(0, 1).toUpperCase()}</span>
       </div>
     );
@@ -39,15 +35,7 @@ export default function ProductGallery({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="group relative aspect-[16/10] overflow-hidden rounded-xl border border-border bg-surface2">
-        {current.type === "image" && (
-          <img
-            src={current.url}
-            alt=""
-            aria-hidden
-            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-35 blur-2xl"
-          />
-        )}
+      <div className="group relative aspect-[16/10] overflow-hidden rounded-xl bg-surface2">
         {current.type === "video" ? (
           <iframe
             className="absolute inset-0 h-full w-full"
@@ -59,7 +47,7 @@ export default function ProductGallery({
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={current.url} alt={title} className="absolute inset-0 h-full w-full object-contain" />
+          <img src={current.url} alt={title} className="absolute inset-0 h-full w-full object-cover" />
         )}
 
         {slides.length > 1 && current.type !== "video" && (
@@ -92,7 +80,7 @@ export default function ProductGallery({
               type="button"
               onClick={() => setActive(i)}
               aria-label={s.type === "video" ? "Play trailer" : `View image ${i + 1}`}
-              className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-lg ring-2 transition ${
+              className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-lg ring-2 transition ${
                 i === active ? "ring-accent" : "ring-transparent opacity-55 hover:opacity-100"
               }`}
             >

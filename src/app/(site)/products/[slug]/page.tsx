@@ -82,9 +82,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   return (
     <div className="flex flex-col gap-12 pb-24 lg:pb-0">
-      <div>
+      <div className="flex flex-col gap-10">
         {/* Breadcrumb */}
-        <nav className="mb-6 flex items-center gap-1.5 text-xs text-slate-500">
+        <nav className="flex items-center gap-1.5 text-xs text-slate-500">
           <Link href="/" className="hover:text-slate-300 transition-colors">
             Home
           </Link>
@@ -97,7 +97,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </nav>
 
         {/* Title block — full width, above the split */}
-        <div className="mb-7 flex flex-col gap-2">
+        <div className="flex flex-col gap-2">
           <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent-soft">
             {product.category.name} · {labelFor(PRODUCT_TYPES, product.type)}
           </span>
@@ -116,10 +116,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
         </div>
 
-        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="flex min-w-0 flex-col gap-6">
             <Reveal>
-              <ProductGallery images={images} videoId={product.videoUrl} title={product.title} cover={product.coverUrl} />
+              <ProductGallery images={images} videoId={product.videoUrl} title={product.title} />
             </Reveal>
 
             {buyerNotice && (
@@ -135,20 +135,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               <Reveal>
                 <section className="flex flex-col gap-3">
                   <h2 className="font-heading text-lg font-semibold text-white">About this {typeWord}</h2>
-                  <div className="max-w-[64ch] space-y-1 text-[13.5px] leading-7 text-slate-300">
+                  <div className="max-w-[68ch] space-y-1 text-sm leading-7 text-slate-300">
                     {renderLiteMarkdown(product.description)}
                   </div>
                 </section>
               </Reveal>
             )}
-
-            <Reveal>
-              <HowItWorks />
-            </Reveal>
-
-            <Reveal>
-              <ProductFaq warrantyDays={maxWarranty} regionText={regionText} hasAccountVariant={hasAccountVariant} />
-            </Reveal>
           </div>
 
           <div>
@@ -157,6 +149,17 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             </Reveal>
           </div>
         </div>
+
+        {/* Long-form sections — full width so they don't crowd a column */}
+        <Reveal>
+          <HowItWorks />
+        </Reveal>
+
+        <Reveal>
+          <div className="max-w-3xl">
+            <ProductFaq warrantyDays={maxWarranty} regionText={regionText} hasAccountVariant={hasAccountVariant} />
+          </div>
+        </Reveal>
       </div>
 
       {related.length > 0 && (
