@@ -5,18 +5,16 @@ import { PrismaClient } from "@prisma/client";
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 // How many Postgres connections THIS process's Prisma pool may open.
-// Prisma's built-in default is `num_physical_cpus * 2 + 1` — on a small
-// host / serverless function that's only ~5, so a single request that
-// fans out several queries at once (the homepage and product pages run
-// `Promise.all([...])` of 3–6 queries, plus the header) exhausts the pool
-// and the next request blocks until `pool_timeout` and then errors. Bump
-// it here; override per-environment with DATABASE_CONNECTION_LIMIT.
-//
-// NOTE: this is capped by the database side too. On Supabase, raise
-// "Pool Size" for the pooler user under Project → Database → Connection
-// pooling (default 15) to at least (connection_limit × running instances),
-// or the extra slots requested here just queue at Supavisor instead.
-const CONNECTION_LIMIT = process.env.DATABASE_CONNECTION_LIMIT ?? "20";
+// Serverless (many short-lived instances) behind a Supabase pooler: the
+// right value is LOW. Each instance holds ~1 connection and the pooler
+// fans out. A high number here causes "FATAL: max clients reached".
+// REQUIRED: DATABASE_URL must be the TRANSACTION pooler
+// (pooler.supabase.com:6543 with ?pgbouncer=true). The session pooler
+// (:5432) pins one real connection per client and exhausts in seconds --
+// that is the "EMAXCONNSESSION / session mode" error. Put :5432 on
+// DIRECT_URL (migrations only). A single long-lived server can override
+// DATABASE_CONNECTION_LIMIT to 10-20.
+const CONNECTION_LIMIT = process.env.DATABASE_CONNECTION_LIMIT ?? "1";
 const POOL_TIMEOUT = process.env.DATABASE_POOL_TIMEOUT ?? "20"; // seconds
 
 /// Returns DATABASE_URL with connection_limit / pool_timeout applied,
