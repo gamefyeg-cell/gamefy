@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PRODUCT_TYPES, labelFor } from "@/lib/enums";
-import AddProductForm from "@/components/admin/AddProductForm";
+import ProductWizard from "@/components/admin/ProductWizard";
 import Pagination from "@/components/admin/Pagination";
 
 const PER_PAGE = 20;
@@ -67,17 +67,17 @@ export default async function AdminProductsPage({
         totalLabel={total > 0 ? `Showing ${from}–${to} of ${total}` : undefined}
       />
 
-      <div className="a-card" style={{ padding: "1.25rem" }}>
+      <div>
         <h2 className="a-h2" style={{ marginBottom: 2 }}>
           Add product
         </h2>
         <p className="a-sub" style={{ marginBottom: "1rem" }}>
-          Sections collapse, and fields appear only when they apply to the type you pick.
+          A short guided flow — shared info first, then a step per platform, each with its own price and stock.
         </p>
         {categories.length === 0 ? (
           <p style={{ color: "var(--a-warn)" }}>Create a category first — products need one.</p>
         ) : (
-          <AddProductForm categories={categories} activationRegions={activationRegions} />
+          <ProductWizard categories={categories} activationRegions={activationRegions} />
         )}
       </div>
     </div>

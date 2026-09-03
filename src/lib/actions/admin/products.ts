@@ -155,6 +155,76 @@ export async function createProductAction(formData: FormData) {
   redirect(`/admin/products/${created.id}`);
 }
 
+/// Multi-step "Add product" wizard (src/components/admin/ProductWizard.tsx).
+/// The product carries only the shared fields (name, media, description);
+/// every other field is per-platform, submitted as `v0_*`, `v1_*`, … and
+/// turned into one ProductVariant each. `skipPricing` saves a bare listing.
+export async function createProductWizardAction(formData: FormData) {
+  const session = await requireAdmin(["SUPER_ADMIN", "PRODUCT_MANAGER"]);
+  const data = productFieldsFrom(formData);
+  if (!data.title || !data.categoryId) throw new Error("Title and category are required.");
+
+  const skipPricing = formData.get("skipPricing") === "on";
+  const count = Math.max(0, Math.min(20, Number(formData.get("variantCount") ?? 0)));
+
+  const created = await prisma.$transaction(async (tx) => {
+    const product = await tx.product.create({ data });
+
+    if (!skipPricing) {
+      for (let i = 0; i < count; i++) {
+        const g = (k: string) => String(formData.get(`v${i}_${k}`) ?? "").trim();
+        const priceRaw = g("price");
+        if (priceRaw === "") continue; // nothing entered for this option — skip it
+
+        const platform = g("platform") || null;
+        const suffix = platform ? slugify(platform) : count > 1 ? `opt${i + 1}` : "default";
+        let sku = `${data.slug}-${suffix}`;
+        if (await tx.productVariant.findUnique({ where: { sku } })) {
+          sku = `${data.slug}-${suffix}-${Math.random().toString(36).slice(2, 7)}`;
+        }
+
+        const warranty = g("warrantyDays");
+        const stockQty = g("stockQty");
+        await tx.productVariant.create({
+          data: {
+            productId: product.id,
+            sku,
+            platform,
+            price: Number(priceRaw) || 0,
+            currency: g("currency") || "EGP",
+            saleMode: g("saleMode") || "KEY",
+            deliveryMethod: g("deliveryMethod") || "AUTO_KEY",
+            edition: g("edition") || null,
+            durationLabel: g("durationLabel") || null,
+            stockMode: g("stockMode") || "MANUAL",
+            stockQty: stockQty ? Number(stockQty) : null,
+            outOfStockMessage: g("outOfStockMessage") || null,
+            activationRegionId: g("activationRegionId") || null,
+            regionLockType: g("regionLockType") || "NONE",
+            warrantyDays: warranty ? Number(warranty) : null,
+            accountAccessLevel: g("accountAccessLevel") || null,
+            activationInstructions: g("activationInstructions") || null,
+            redemptionInstructions: g("redemptionInstructions") || null,
+            accountDeliveryNote: g("accountDeliveryNote") || null,
+            active: true,
+          },
+        });
+      }
+    }
+
+    return product;
+  });
+
+  await logAudit(session.userId, "product.create", `Product:${created.id}`, null, {
+    ...created,
+    variantsRequested: skipPricing ? 0 : count,
+  });
+
+  revalidatePath("/admin/products");
+  revalidatePath("/");
+  redirect(`/admin/products/${created.id}`);
+}
+
 export async function updateProductAction(formData: FormData) {
   const session = await requireAdmin(["SUPER_ADMIN", "PRODUCT_MANAGER"]);
   const id = String(formData.get("id") ?? "");

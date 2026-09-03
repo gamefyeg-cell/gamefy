@@ -443,6 +443,131 @@ a.a-list-row:hover {
   margin: 0;
 }
 
+/* Info tooltip — the ⓘ next to a field label */
+.a-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  border: 1px solid var(--a-border-strong);
+  color: var(--a-faint);
+  font-size: 10px;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1;
+  cursor: help;
+  flex-shrink: 0;
+}
+.a-tip:hover,
+.a-tip:focus-visible {
+  color: var(--a-accent);
+  border-color: var(--a-accent);
+  outline: none;
+}
+.a-tip-bubble {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 250px;
+  background: var(--a-panel-3);
+  color: var(--a-text);
+  border: 1px solid var(--a-border-strong);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  box-shadow: var(--a-shadow-lg);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s;
+  z-index: 40;
+}
+.a-tip-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--a-border-strong);
+}
+.a-tip:hover .a-tip-bubble,
+.a-tip:focus .a-tip-bubble,
+.a-tip:focus-within .a-tip-bubble {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Wizard stepper */
+.a-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.a-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--a-border);
+  color: var(--a-muted);
+  background: var(--a-panel);
+}
+.a-step:not(:disabled) {
+  cursor: pointer;
+}
+.a-step:disabled {
+  opacity: 0.65;
+}
+.a-step .n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--a-panel-2);
+  font-size: 0.7rem;
+}
+.a-step.is-active {
+  border-color: var(--a-accent);
+  color: var(--a-accent);
+  background: var(--a-accent-weak);
+}
+.a-step.is-active .n {
+  background: var(--a-accent);
+  color: var(--a-on-accent);
+}
+.a-step.is-done {
+  color: var(--a-success);
+  border-color: color-mix(in srgb, var(--a-success) 35%, transparent);
+}
+.a-step.is-done .n {
+  background: var(--a-success-weak);
+  color: var(--a-success);
+}
+
+.a-wizard-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid var(--a-border);
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+}
+
 /* --------------------------------------------------------------------------
    Compatibility shim — remaps the storefront utility classes still used by
    the not-yet-rebuilt admin pages onto the admin palette, so the whole
