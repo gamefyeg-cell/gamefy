@@ -1,6 +1,23 @@
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
+/// The ONE message shown whenever a blocked IP or suspended account tries
+/// to do anything (login, register, checkout, reveal, password reset).
+/// Never fall through to "invalid credentials" or a vague "can't process"
+/// error for a blocked actor — it just tells them to switch machines.
+export const BLOCKED_MESSAGE =
+  "Blocked: suspicious activity detected. Please contact support if you believe this is a mistake.";
+
+/// True when this request must be refused outright — the IP is on the
+/// block list, or the (optional) account is suspended.
+export async function isBlockedActor(opts: {
+  ip: string | null;
+  bannedAt?: Date | null;
+}): Promise<boolean> {
+  if (opts.bannedAt) return true;
+  return isIpBlocked(opts.ip);
+}
+
 /// Best-effort client IP from the proxy headers Vercel / most hosts set.
 export async function getRequestIp(): Promise<string | null> {
   try {

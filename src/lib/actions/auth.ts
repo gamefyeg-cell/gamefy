@@ -8,14 +8,13 @@ import { createSession, clearSession } from "@/lib/session";
 import { sendMail } from "@/lib/mailer";
 import { ADMIN_ROLES, type UserRole } from "@/lib/enums";
 import {
+  BLOCKED_MESSAGE,
   getRequestIp,
   isIpBlocked,
   logCustomerEvent,
   recentLoginFailures,
   recentRegistrations,
 } from "@/lib/moderation";
-
-const BLOCKED_MESSAGE = "We can't process this right now. Contact support if you think this is a mistake.";
 
 // Sliding-window login throttle (customer_events backed — no Redis).
 const LOGIN_WINDOW_MIN = 15;
@@ -81,6 +80,13 @@ export async function loginAction(_prev: AuthActionState, formData: FormData): P
 
   const ip = await getRequestIp();
 
+  // Blocked IP → one consistent message, before we reveal anything about
+  // whether the credentials were right.
+  if (await isIpBlocked(ip)) {
+    await logCustomerEvent({ email, ip, type: "login_blocked", detail: "blocked IP" });
+    return { error: BLOCKED_MESSAGE };
+  }
+
   // Throttle before doing any bcrypt work.
   const fails = await recentLoginFailures({ ip, email, minutes: LOGIN_WINDOW_MIN });
   if (fails.byIp >= LOGIN_MAX_PER_IP || fails.byEmail >= LOGIN_MAX_PER_EMAIL) {
@@ -94,16 +100,17 @@ export async function loginAction(_prev: AuthActionState, formData: FormData): P
     return { error: "Invalid email or password." };
   }
 
+  if (user.bannedAt) {
+    await logCustomerEvent({ userId: user.id, email, ip, type: "login_blocked", detail: "suspended account" });
+    return { error: BLOCKED_MESSAGE };
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     await logCustomerEvent({ userId: user.id, email, ip, type: "login_failed", detail: "wrong password" });
     return { error: "Invalid email or password." };
   }
 
-  if (user.bannedAt || (await isIpBlocked(ip))) {
-    await logCustomerEvent({ userId: user.id, email, ip, type: "login_blocked" });
-    return { error: user.bannedAt ? "This account has been suspended. Contact support." : BLOCKED_MESSAGE };
-  }
   await logCustomerEvent({ userId: user.id, email, ip, type: "login" });
 
   await createSession({ userId: user.id, email: user.email, role: user.role as UserRole });
@@ -128,6 +135,9 @@ export async function requestPasswordResetAction(
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email) {
     return { error: "Enter your email." };
+  }
+  if (await isIpBlocked(await getRequestIp())) {
+    return { error: BLOCKED_MESSAGE };
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
@@ -186,6 +196,9 @@ export async function resetPasswordAction(
 
   if (!email || !/^\d{6}$/.test(code) || !password || password.length < 8) {
     return { error: "Enter the 6-digit code from your email and a password of at least 8 characters." };
+  }
+  if (await isIpBlocked(await getRequestIp())) {
+    return { error: BLOCKED_MESSAGE };
   }
 
   const user = await prisma.user.findUnique({ where: { email } });

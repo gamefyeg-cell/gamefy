@@ -7,7 +7,7 @@ import { getSession } from "@/lib/session";
 import { getSelectedRegion } from "@/lib/region";
 import { toJson } from "@/lib/json";
 import { getActiveDiscounts, buildCollectionIdsMap, pickBestDiscount } from "@/lib/discounts";
-import { countRecentEvents, getRequestIp, isIpBlocked, logCustomerEvent } from "@/lib/moderation";
+import { BLOCKED_MESSAGE, countRecentEvents, getRequestIp, isIpBlocked, logCustomerEvent } from "@/lib/moderation";
 
 export interface CheckoutState {
   error?: string;
@@ -45,6 +45,13 @@ export async function placeOrderAction(_prev: CheckoutState, formData: FormData)
   }
 
   const ip = await getRequestIp();
+
+  // Blocked IP → refuse immediately with the one shared message, before
+  // any validation feedback that would tell an attacker what to fix.
+  if (await isIpBlocked(ip)) {
+    await logCustomerEvent({ email, ip, type: "checkout_throttled", detail: "blocked IP" });
+    return { error: BLOCKED_MESSAGE };
+  }
 
   const buyerName = String(formData.get("buyerName") ?? "").trim();
   const buyerPhone = String(formData.get("buyerPhone") ?? "").trim();
@@ -137,9 +144,9 @@ export async function placeOrderAction(_prev: CheckoutState, formData: FormData)
   const user = session ? await prisma.user.findUnique({ where: { id: session.userId } }) : await getOrCreateGuestUser(email);
   if (!user) return { error: "Could not resolve account." };
 
-  if (user.bannedAt || (await isIpBlocked(ip))) {
-    await logCustomerEvent({ userId: user.id, email, ip, type: "login_blocked", detail: "checkout blocked" });
-    return { error: "We can't process this order. Contact support if you think this is a mistake." };
+  if (user.bannedAt) {
+    await logCustomerEvent({ userId: user.id, email, ip, type: "checkout_throttled", detail: "suspended account" });
+    return { error: BLOCKED_MESSAGE };
   }
 
   // Order-flood throttle — 8 per IP or account per hour.

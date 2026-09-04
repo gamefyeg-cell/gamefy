@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { decryptSecret } from "@/lib/crypto";
 import { logAudit } from "@/lib/actions/admin/audit";
-import { countRecentEvents, getRequestIp, logCustomerEvent } from "@/lib/moderation";
+import { BLOCKED_MESSAGE, countRecentEvents, getRequestIp, isIpBlocked, logCustomerEvent } from "@/lib/moderation";
 
 export interface RevealState {
   value?: string;
@@ -18,6 +18,11 @@ export interface RevealState {
 export async function revealOrderItemAction(orderItemId: string): Promise<RevealState> {
   const ip = await getRequestIp();
   const session = await getSession();
+
+  if (await isIpBlocked(ip)) {
+    await logCustomerEvent({ userId: session?.userId ?? null, ip, type: "reveal_failed", detail: "blocked IP" });
+    return { error: BLOCKED_MESSAGE };
+  }
 
   // Throttle order-link / item-id probing.
   if ((await countRecentEvents({ types: ["reveal_failed"], minutes: 15, ip, userId: session?.userId })) >= 20) {
