@@ -30,7 +30,7 @@ export default async function CategoryPage({
   const categoryIds = [category.id, ...category.children.map((c) => c.id)];
   const products = await prisma.product.findMany({
     where: { categoryId: { in: categoryIds }, active: true },
-    include: { variants: { where: { active: true }, select: { price: true, currency: true } } },
+    include: { variants: { where: { active: true }, select: { price: true, currency: true, platform: true } } },
     orderBy: { createdAt: "desc" },
   });
 

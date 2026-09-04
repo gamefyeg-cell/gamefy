@@ -10,6 +10,7 @@ import { springs, tapFeedback } from "@/lib/motion";
 interface CardVariant {
   price: number;
   currency: string;
+  platform?: string | null;
 }
 
 interface CardProduct {
@@ -21,6 +22,12 @@ interface CardProduct {
   images: string;
   variants: CardVariant[];
 }
+
+const PLATFORM_SHORT: Record<string, string> = {
+  PlayStation: "PS",
+  "Nintendo Switch": "Switch",
+  "Cross-Platform": "Cross-Platform",
+};
 
 const cardVariants = {
   rest: { y: 0 },
@@ -60,6 +67,14 @@ export default function ProductCard({
     ? product.variants.reduce((min, v) => (v.price < min.price ? v : min))
     : null;
   const discountedPrice = cheapest && discount ? Math.max(0, cheapest.price - discount.amount) : null;
+
+  const platforms = Array.from(new Set(product.variants.map((v) => v.platform).filter((p): p is string => Boolean(p))));
+  const platformText =
+    platforms.length === 0
+      ? null
+      : platforms.length <= 2
+        ? platforms.map((p) => PLATFORM_SHORT[p] ?? p).join(" / ")
+        : `${platforms.length} platforms`;
 
   const reduced = useReducedMotion();
   const rotateX = useMotionValue(0);
@@ -117,9 +132,14 @@ export default function ProductCard({
           {/* bottom scrim for legible overlaid text */}
           <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/60 to-transparent" />
 
-          <span className="badge absolute top-2 left-2 bg-black/60 text-slate-200 backdrop-blur">
-            {labelFor(PRODUCT_TYPES, product.type)}
-          </span>
+          <div className="absolute top-2 left-2 right-9 flex items-center gap-1.5">
+            <span className="badge bg-black/60 text-slate-200 backdrop-blur shrink-0">
+              {labelFor(PRODUCT_TYPES, product.type)}
+            </span>
+            {platformText && (
+              <span className="badge bg-black/60 text-accent-soft backdrop-blur truncate">{platformText}</span>
+            )}
+          </div>
 
           <CornerStripes position="top-right" />
           <CornerStripes position="bottom-right" />
