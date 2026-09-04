@@ -122,34 +122,21 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               <ProductGallery images={images} videoId={product.videoUrl} title={product.title} />
             </Reveal>
 
-            {(buyerNotice || product.description) && (
-              <div className={`grid items-start gap-6 ${buyerNotice && product.description ? "sm:grid-cols-2" : ""}`}>
-                {buyerNotice && (
-                  <Reveal>
-                    <div className="notice-box">
-                      <div className="mb-1 text-sm font-semibold text-warn">⚠ Before you buy</div>
-                      <div className="text-sm leading-relaxed text-slate-200">{renderLiteMarkdown(buyerNotice)}</div>
-                    </div>
-                  </Reveal>
-                )}
-
-                {product.description && (
-                  <Reveal delay={buyerNotice ? 0.05 : 0}>
-                    <section className="flex flex-col gap-3">
-                      <h2 className="font-heading text-lg font-semibold text-white">About this {typeWord}</h2>
-                      <div className="space-y-1 text-sm leading-7 text-slate-300">
-                        {renderLiteMarkdown(product.description)}
-                      </div>
-                    </section>
-                  </Reveal>
-                )}
-              </div>
+            {product.description && (
+              <Reveal>
+                <section className="flex flex-col gap-3">
+                  <h2 className="font-heading text-lg font-semibold text-white">About this {typeWord}</h2>
+                  <div className="max-w-[68ch] space-y-1 text-sm leading-7 text-slate-300">
+                    {renderLiteMarkdown(product.description)}
+                  </div>
+                </section>
+              </Reveal>
             )}
           </div>
 
           <div>
             <Reveal delay={0.1} className="lg:sticky lg:top-24">
-              <ProductBuyBox variants={variantsWithDiscount} customFields={product.customFields} />
+              <ProductBuyBox variants={variantsWithDiscount} customFields={product.customFields} buyerNotice={buyerNotice} />
             </Reveal>
           </div>
         </div>

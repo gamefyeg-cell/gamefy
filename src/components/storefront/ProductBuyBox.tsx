@@ -8,6 +8,7 @@ import { formatMoney } from "@/lib/format";
 import { labelFor, REGION_LOCK_TYPES, ACCOUNT_ACCESS_LEVELS, PLATFORMS } from "@/lib/enums";
 import { addToCartAction } from "@/lib/actions/site";
 import { springs, tapFeedback } from "@/lib/motion";
+import { renderLiteMarkdown } from "@/lib/richtext";
 
 interface Variant {
   id: string;
@@ -77,9 +78,11 @@ function regionIcon(kind?: string) {
 export default function ProductBuyBox({
   variants,
   customFields,
+  buyerNotice,
 }: {
   variants: Variant[];
   customFields: CustomField[];
+  buyerNotice?: string | null;
 }) {
   const router = useRouter();
   const usable = useMemo(() => variants.filter((v) => v.active), [variants]);
@@ -304,6 +307,15 @@ export default function ProductBuyBox({
             </div>
           )}
         </div>
+
+        {/* Before you buy — right where it's relevant: next to the button
+            that acts on it, not off in the page body. */}
+        {buyerNotice && (
+          <div className="notice-box !p-3.5">
+            <div className="mb-1 text-xs font-semibold text-warn">⚠ Before you buy</div>
+            <div className="text-xs leading-relaxed text-slate-200">{renderLiteMarkdown(buyerNotice)}</div>
+          </div>
+        )}
 
         {/* Buy */}
         <form id="buybox-form" onSubmit={handleAdd} className="flex flex-col gap-3">
