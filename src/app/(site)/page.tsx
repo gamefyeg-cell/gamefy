@@ -1,46 +1,21 @@
-import { prisma } from "@/lib/prisma";
-import { getSelectedRegion } from "@/lib/region";
-import HomepageBlockRenderer from "@/components/storefront/HomepageBlocks";
-import Reveal from "@/components/motion/Reveal";
+import { Hero, TrendingSection, CategorySection, CollectionsSection } from "@/components/storefront/HomeSections";
+import Reveal from "@/components/storefront/Reveal";
 
-export default async function HomePage() {
-  const region = await getSelectedRegion();
-  const now = new Date();
-
-  const blocks = await prisma.homepageBlock.findMany({
-    where: {
-      active: true,
-      AND: [
-        { OR: [{ targetRegionId: null }, { targetRegionId: region?.id }] },
-        { OR: [{ scheduleStart: null }, { scheduleStart: { lte: now } }] },
-        { OR: [{ scheduleEnd: null }, { scheduleEnd: { gte: now } }] },
-      ],
-    },
-    orderBy: { sortOrder: "asc" },
-  });
-
-  if (blocks.length === 0) {
-    return (
-      <div className="text-center py-24">
-        <h1 className="text-2xl font-bold text-white mb-2">Welcome to Gamefy</h1>
-        <p className="text-slate-400">
-          No homepage blocks configured yet — add some from{" "}
-          <a href="/admin/homepage-blocks" className="text-accent-soft underline">
-            the admin panel
-          </a>
-          .
-        </p>
-      </div>
-    );
-  }
-
+export default function HomePage() {
   return (
     <div className="flex flex-col gap-10">
-      {blocks.map((block, i) => (
-        <Reveal key={block.id} delay={Math.min(i * 0.06, 0.24)}>
-          <HomepageBlockRenderer block={block} />
-        </Reveal>
-      ))}
+      <Reveal>
+        <Hero />
+      </Reveal>
+      <Reveal delay={0.06}>
+        <TrendingSection />
+      </Reveal>
+      <Reveal delay={0.1}>
+        <CategorySection />
+      </Reveal>
+      <Reveal delay={0.14}>
+        <CollectionsSection />
+      </Reveal>
     </div>
   );
 }

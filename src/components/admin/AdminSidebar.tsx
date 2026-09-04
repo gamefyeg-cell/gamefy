@@ -40,10 +40,6 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: s
       { href: "/admin/blocked-ips", label: "Blocked IPs", icon: "⦸" },
     ],
   },
-  {
-    label: "Storefront",
-    items: [{ href: "/admin/homepage-blocks", label: "Homepage Builder", icon: "◱" }],
-  },
 ];
 
 export default function AdminSidebar({ email, role }: { email: string; role: string }) {
