@@ -120,9 +120,6 @@ export default function ProductCard({
           <span className="badge absolute top-2 left-2 bg-black/60 text-slate-200 backdrop-blur">
             {labelFor(PRODUCT_TYPES, product.type)}
           </span>
-          {discount && (
-            <span className="badge absolute top-9 left-2 bg-danger text-white">{discount.name}</span>
-          )}
 
           <CornerStripes position="top-right" />
           <CornerStripes position="bottom-right" />
