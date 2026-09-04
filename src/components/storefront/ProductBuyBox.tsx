@@ -150,14 +150,6 @@ export default function ProductBuyBox({
       <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-accent via-accent-soft to-gold" />
 
       <div className="flex flex-col gap-5 p-5 sm:p-6">
-        {/* Which platform this is, even with a single option — never leave
-            it unlabeled just because there's nothing to switch between. */}
-        {usable.length === 1 && variant.platform && (
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold text-slate-200">
-            {PLATFORM_ICON[variant.platform] ?? "🎮"} {labelFor(PLATFORMS, variant.platform)}
-          </span>
-        )}
-
         {/* Option picker */}
         {usable.length > 1 && (
           <div className="flex flex-col gap-2">
@@ -281,6 +273,19 @@ export default function ProductBuyBox({
           <div className="px-4 py-4">
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">What you get</span>
             <ul className="mt-3 flex flex-col gap-2.5 text-[13px] text-slate-300">
+              {/* Reflects whichever option is currently selected — the
+                  single source of "which platform am I buying", whether
+                  there was a picker to choose it or only one option. */}
+              {variant.platform && (
+                <li className="flex items-center gap-3">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-sm">
+                    {PLATFORM_ICON[variant.platform] ?? "🎮"}
+                  </span>
+                  <span>
+                    Platform: <span className="font-medium text-white">{labelFor(PLATFORMS, variant.platform)}</span>
+                  </span>
+                </li>
+              )}
               <li className="flex items-center gap-3">
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-sm">
                   {del.icon}
