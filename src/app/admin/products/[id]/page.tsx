@@ -8,7 +8,7 @@ import {
   createCustomFieldAction,
   deleteCustomFieldAction,
 } from "@/lib/actions/admin/products";
-import { PRODUCT_TYPES, SALE_MODES, CUSTOM_FIELD_TYPES, PLATFORMS, labelFor } from "@/lib/enums";
+import { PRODUCT_TYPES, SALE_MODES, CUSTOM_FIELD_TYPES, labelFor } from "@/lib/enums";
 import { parseStringArray } from "@/lib/json";
 import { formatMoney } from "@/lib/format";
 import ImageUploader from "@/components/admin/ImageUploader";
@@ -76,16 +76,6 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
             </Field>
             <Field label="Publisher" tip="Optional — shown as “by …” under the title.">
               <input name="publisher" defaultValue={product.publisher ?? ""} className="a-input" />
-            </Field>
-            <Field label="Platform badge" tip="A single platform badge for the product. Leave unset when the product has several platform options — the storefront shows a picker from those instead.">
-              <select name="platform" defaultValue={product.platform ?? ""} className="a-select">
-                <option value="">— Not set —</option>
-                {PLATFORMS.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
             </Field>
           </div>
         </details>
