@@ -79,7 +79,7 @@ export async function Hero() {
     orderBy: { sortOrder: "asc" },
     select: { slug: true },
   });
-  const ctaHref = firstCategory ? `/categories/${firstCategory.slug}` : "#trending";
+  const ctaHref = firstCategory ? `/categories/${firstCategory.slug}` : "/products";
 
   return (
     <section className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-surface2 shadow-[0_24px_70px_-24px_rgba(0,0,0,0.75)]">
@@ -105,7 +105,7 @@ export async function Hero() {
             <Link href={ctaHref} className="btn-primary !rounded-xl !px-7 !py-3.5 text-[15px] font-semibold">
               Shop Best Sellers
             </Link>
-            <Link href="#trending" className="text-sm font-medium text-slate-200 transition-colors hover:text-white">
+            <Link href="/products" className="text-sm font-medium text-slate-200 transition-colors hover:text-white">
               Browse everything →
             </Link>
           </div>
