@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { PRODUCT_TYPES, labelFor } from "@/lib/enums";
 import ProductWizard from "@/components/admin/ProductWizard";
 import Pagination from "@/components/admin/Pagination";
+import AddPanel from "@/components/admin/AddPanel";
 
 const PER_PAGE = 20;
 
@@ -36,6 +37,17 @@ export default async function AdminProductsPage({
         <span className="a-badge">{total} total</span>
       </div>
 
+      {categories.length === 0 ? (
+        <p style={{ color: "var(--a-warn)" }}>Create a category first — products need one.</p>
+      ) : (
+        <AddPanel label="Add product">
+          <p className="a-sub" style={{ marginBottom: "1rem" }}>
+            A short guided flow — shared info first, then a step per platform, each with its own price and stock.
+          </p>
+          <ProductWizard categories={categories} activationRegions={activationRegions} />
+        </AddPanel>
+      )}
+
       <div className="a-list">
         {products.length === 0 ? (
           <p className="a-list-empty">No products yet — add your first below.</p>
@@ -66,20 +78,6 @@ export default async function AdminProductsPage({
         basePath="/admin/products"
         totalLabel={total > 0 ? `Showing ${from}–${to} of ${total}` : undefined}
       />
-
-      <div>
-        <h2 className="a-h2" style={{ marginBottom: 2 }}>
-          Add product
-        </h2>
-        <p className="a-sub" style={{ marginBottom: "1rem" }}>
-          A short guided flow — shared info first, then a step per platform, each with its own price and stock.
-        </p>
-        {categories.length === 0 ? (
-          <p style={{ color: "var(--a-warn)" }}>Create a category first — products need one.</p>
-        ) : (
-          <ProductWizard categories={categories} activationRegions={activationRegions} />
-        )}
-      </div>
     </div>
   );
 }

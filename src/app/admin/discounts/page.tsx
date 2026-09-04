@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AddPanel from "@/components/admin/AddPanel";
 import { prisma } from "@/lib/prisma";
 import { createDiscountAction, deleteDiscountAction } from "@/lib/actions/admin/discounts";
 import { DISCOUNT_TYPES, labelFor } from "@/lib/enums";
@@ -61,8 +62,8 @@ export default async function AdminDiscountsPage() {
         ))}
       </div>
 
-      <div className="card p-5">
-        <h2 className="text-lg font-semibold text-slate-200 mb-4">Add discount</h2>
+      <AddPanel label="Add discount">
+        <div className="card p-5">
         <form action={createDiscountAction} className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="label">Name (shown to buyers)</label>
@@ -110,6 +111,7 @@ export default async function AdminDiscountsPage() {
           </div>
         </form>
       </div>
+      </AddPanel>
     </div>
   );
 }

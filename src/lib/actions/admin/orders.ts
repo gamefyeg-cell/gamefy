@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/actions/admin/audit";
 import { encryptSecret } from "@/lib/crypto";
 import { STOCK_BACKED_DELIVERY } from "@/lib/delivery";
 import { trackProductEvent } from "@/lib/analytics";
+import { logCustomerEvent } from "@/lib/moderation";
 
 async function recomputeOrderStatus(orderId: string) {
   const items = await prisma.orderItem.findMany({ where: { orderId } });
@@ -113,6 +114,7 @@ export async function verifyPaymentAction(formData: FormData) {
   });
 
   await logAudit(session.userId, "order.verify_payment", `Order:${orderId}`, { status: order.status }, { status: "verified" });
+  await logCustomerEvent({ userId: order.userId, ip: order.ipAddress, type: "order_verified", detail: `Order:${orderId}` });
 
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/admin/orders");

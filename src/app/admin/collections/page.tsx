@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AddPanel from "@/components/admin/AddPanel";
 import { prisma } from "@/lib/prisma";
 import { createCollectionAction, deleteCollectionAction } from "@/lib/actions/admin/collections";
 import { COLLECTION_TYPES } from "@/lib/enums";
@@ -37,8 +38,8 @@ export default async function AdminCollectionsPage() {
         ))}
       </div>
 
-      <div className="card p-5">
-        <h2 className="text-lg font-semibold text-slate-200 mb-4">Add collection</h2>
+      <AddPanel label="Add collection">
+        <div className="card p-5">
         <form action={createCollectionAction} className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="label">Name</label>
@@ -81,6 +82,7 @@ export default async function AdminCollectionsPage() {
           </div>
         </form>
       </div>
+      </AddPanel>
     </div>
   );
 }

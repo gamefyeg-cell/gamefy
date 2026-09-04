@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AddPanel from "@/components/admin/AddPanel";
 import { prisma } from "@/lib/prisma";
 import { createCategoryAction, deleteCategoryAction } from "@/lib/actions/admin/categories";
 import SingleImageUploader from "@/components/admin/SingleImageUploader";
@@ -41,8 +42,8 @@ export default async function AdminCategoriesPage() {
         ))}
       </div>
 
-      <div className="card p-5">
-        <h2 className="text-lg font-semibold text-slate-200 mb-4">Add category</h2>
+      <AddPanel label="Add category">
+        <div className="card p-5">
         <form action={createCategoryAction} className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="label">Name</label>
@@ -90,6 +91,7 @@ export default async function AdminCategoriesPage() {
           </div>
         </form>
       </div>
+      </AddPanel>
     </div>
   );
 }

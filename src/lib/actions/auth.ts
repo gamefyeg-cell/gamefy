@@ -7,6 +7,9 @@ import { prisma } from "@/lib/prisma";
 import { createSession, clearSession } from "@/lib/session";
 import { sendMail } from "@/lib/mailer";
 import { ADMIN_ROLES, type UserRole } from "@/lib/enums";
+import { getRequestIp, isIpBlocked, logCustomerEvent } from "@/lib/moderation";
+
+const BLOCKED_MESSAGE = "We can't process this right now. Contact support if you think this is a mistake.";
 
 export interface AuthActionState {
   error?: string;
@@ -32,6 +35,12 @@ export async function registerAction(_prev: AuthActionState, formData: FormData)
     return { error: "Enter a valid email and a password of at least 8 characters." };
   }
 
+  const ip = await getRequestIp();
+  if (await isIpBlocked(ip)) {
+    await logCustomerEvent({ email, ip, type: "login_blocked", detail: "register: blocked IP" });
+    return { error: BLOCKED_MESSAGE };
+  }
+
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     return { error: "An account with that email already exists." };
@@ -41,6 +50,7 @@ export async function registerAction(_prev: AuthActionState, formData: FormData)
   const user = await prisma.user.create({
     data: { email, passwordHash, role: "CUSTOMER", emailVerified: false },
   });
+  await logCustomerEvent({ userId: user.id, email, ip, type: "register" });
 
   await createSession({ userId: user.id, email: user.email, role: user.role as UserRole });
   redirect("/account");
@@ -51,6 +61,7 @@ export async function loginAction(_prev: AuthActionState, formData: FormData): P
   const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "");
 
+  const ip = await getRequestIp();
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.passwordHash) {
     return { error: "Invalid email or password." };
@@ -60,6 +71,12 @@ export async function loginAction(_prev: AuthActionState, formData: FormData): P
   if (!valid) {
     return { error: "Invalid email or password." };
   }
+
+  if (user.bannedAt || (await isIpBlocked(ip))) {
+    await logCustomerEvent({ userId: user.id, email, ip, type: "login_blocked" });
+    return { error: user.bannedAt ? "This account has been suspended. Contact support." : BLOCKED_MESSAGE };
+  }
+  await logCustomerEvent({ userId: user.id, email, ip, type: "login" });
 
   await createSession({ userId: user.id, email: user.email, role: user.role as UserRole });
 

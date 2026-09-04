@@ -7,6 +7,7 @@ import { getSession } from "@/lib/session";
 import { getSelectedRegion } from "@/lib/region";
 import { toJson } from "@/lib/json";
 import { getActiveDiscounts, buildCollectionIdsMap, pickBestDiscount } from "@/lib/discounts";
+import { getRequestIp, isIpBlocked, logCustomerEvent } from "@/lib/moderation";
 
 export interface CheckoutState {
   error?: string;
@@ -124,6 +125,12 @@ export async function placeOrderAction(_prev: CheckoutState, formData: FormData)
   const user = session ? await prisma.user.findUnique({ where: { id: session.userId } }) : await getOrCreateGuestUser(email);
   if (!user) return { error: "Could not resolve account." };
 
+  const ip = await getRequestIp();
+  if (user.bannedAt || (await isIpBlocked(ip))) {
+    await logCustomerEvent({ userId: user.id, email, ip, type: "login_blocked", detail: "checkout blocked" });
+    return { error: "We can't process this order. Contact support if you think this is a mistake." };
+  }
+
   const order = await prisma.$transaction(async (tx) => {
     const created = await tx.order.create({
       data: {
@@ -138,6 +145,7 @@ export async function placeOrderAction(_prev: CheckoutState, formData: FormData)
         buyerName,
         buyerPhone,
         buyerCity,
+        ipAddress: ip,
       },
     });
 
@@ -164,6 +172,8 @@ export async function placeOrderAction(_prev: CheckoutState, formData: FormData)
 
     return created;
   });
+
+  await logCustomerEvent({ userId: user.id, email, ip, type: "order_placed", detail: `Order:${order.id}` });
 
   await clearCart();
   redirect(`/orders/${order.id}`);

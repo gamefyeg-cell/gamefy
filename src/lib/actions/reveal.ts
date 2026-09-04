@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { decryptSecret } from "@/lib/crypto";
 import { logAudit } from "@/lib/actions/admin/audit";
+import { getRequestIp, logCustomerEvent } from "@/lib/moderation";
 
 export interface RevealState {
   value?: string;
@@ -40,6 +41,12 @@ export async function revealOrderItemAction(orderItemId: string): Promise<Reveal
     null,
     { revealedBy: session?.email ?? "guest (order link)" }
   );
+  await logCustomerEvent({
+    userId: item.order.userId,
+    ip: await getRequestIp(),
+    type: "reveal",
+    detail: `OrderItem:${orderItemId}`,
+  });
 
   return { value };
 }

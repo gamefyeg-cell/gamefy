@@ -384,8 +384,8 @@ a.a-list-row:hover {
   accent-color: var(--a-accent);
 }
 
-/* Sidebar — a pinned, full-viewport-height column so its border always
-   reaches the bottom even on very tall pages; the nav scrolls if long. */
+/* Sidebar — full-height column; only <main> scrolls, so the nav (which
+   scrolls internally if long) and footer are always in view on desktop. */
 .a-sidebar {
   width: 15rem;
   flex-shrink: 0;
@@ -393,16 +393,12 @@ a.a-list-row:hover {
   border-right: 1px solid var(--a-border);
   display: flex;
   flex-direction: column;
-  height: 100%;
   min-height: 100vh;
 }
 @media (min-width: 768px) {
   .a-sidebar-wrap {
-    position: sticky;
-    top: 0;
-    bottom: auto;
-    align-self: flex-start;
-    height: 100vh;
+    height: 100%;
+    flex-shrink: 0;
   }
   .a-sidebar {
     height: 100%;

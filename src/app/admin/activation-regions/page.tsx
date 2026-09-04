@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AddPanel from "@/components/admin/AddPanel";
 import { prisma } from "@/lib/prisma";
 import { createActivationRegionAction, deleteActivationRegionAction } from "@/lib/actions/admin/activationRegions";
 
@@ -38,8 +39,8 @@ export default async function AdminActivationRegionsPage() {
         ))}
       </div>
 
-      <div className="card p-5">
-        <h2 className="text-lg font-semibold text-slate-200 mb-4">Add activation region</h2>
+      <AddPanel label="Add activation region">
+        <div className="card p-5">
         <form action={createActivationRegionAction} className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="label">Name</label>
@@ -78,7 +79,8 @@ export default async function AdminActivationRegionsPage() {
             </button>
           </div>
         </form>
-      </div>
+        </div>
+      </AddPanel>
     </div>
   );
 }

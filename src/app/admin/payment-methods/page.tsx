@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AddPanel from "@/components/admin/AddPanel";
 import { prisma } from "@/lib/prisma";
 import { createPaymentMethodAction } from "@/lib/actions/admin/paymentMethods";
 import { PAYMENT_METHOD_TYPES, labelFor } from "@/lib/enums";
@@ -36,8 +37,8 @@ export default async function AdminPaymentMethodsPage() {
         ))}
       </div>
 
-      <div className="card p-5">
-        <h2 className="text-lg font-semibold text-slate-200 mb-4">Add payment method</h2>
+      <AddPanel label="Add payment method">
+        <div className="card p-5">
         <form action={createPaymentMethodAction} className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="label">Type</label>
@@ -77,6 +78,7 @@ export default async function AdminPaymentMethodsPage() {
           </div>
         </form>
       </div>
+      </AddPanel>
     </div>
   );
 }

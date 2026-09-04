@@ -495,14 +495,50 @@ model User {
   role             String  @default("CUSTOMER") // PG: enum UserRole
   points           Int     @default(0) // loyalty/cashback points (plan §9)
 
+  /// Set when an admin suspends the account — blocks login, checkout and
+  /// key reveals. Null = active.
+  bannedAt  DateTime?
+  banReason String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   orders     Order[]
   auditLogs  AdminAuditLog[]
   resetCodes PasswordResetCode[]
+  events     CustomerEvent[]
 
   @@map("users")
+}
+
+/// Append-only record of what a customer (or guest) did — login, register,
+/// order placed/verified, key reveal. Carries the request IP so an admin
+/// can spot abuse and block the address.
+model CustomerEvent {
+  id     String  @id @default(cuid())
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email  String?
+  ip     String?
+  type   String // "register" | "login" | "login_blocked" | "order_placed" | "order_verified" | "reveal"
+  detail String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([ip])
+  @@index([createdAt])
+  @@map("customer_events")
+}
+
+/// Addresses an admin has blocked. Checked on login, register and checkout.
+model BlockedIp {
+  ip        String  @id
+  reason    String?
+  createdBy String? // admin user id
+  createdAt DateTime @default(now())
+
+  @@map("blocked_ips")
 }
 
 // Forgot-password flow: a short-lived, single-use code emailed to the user.
@@ -552,6 +588,7 @@ model Order {
   buyerName  String?
   buyerPhone String?
   buyerCity  String?
+  ipAddress  String? // request IP at checkout — for abuse review / IP blocking
 
   verifiedAt   DateTime? // when an admin confirmed the transfer and released fulfillment
   verifiedById String?

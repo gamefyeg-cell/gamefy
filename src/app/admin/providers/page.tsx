@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AddPanel from "@/components/admin/AddPanel";
 import { prisma } from "@/lib/prisma";
 import { createProviderAction, deleteProviderAction } from "@/lib/actions/admin/providers";
 import { PROVIDER_SYNC_MODES } from "@/lib/enums";
@@ -37,8 +38,8 @@ export default async function AdminProvidersPage() {
         ))}
       </div>
 
-      <div className="card p-5">
-        <h2 className="text-lg font-semibold text-slate-200 mb-4">Add provider</h2>
+      <AddPanel label="Add provider">
+        <div className="card p-5">
         <form action={createProviderAction} className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="label">Name</label>
@@ -90,6 +91,7 @@ export default async function AdminProvidersPage() {
           </div>
         </form>
       </div>
+      </AddPanel>
     </div>
   );
 }
