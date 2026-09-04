@@ -74,12 +74,10 @@ export async function Hero() {
     });
   }
 
-  const firstCategory = await prisma.category.findFirst({
-    where: { parentId: null, visible: true },
-    orderBy: { sortOrder: "asc" },
-    select: { slug: true },
-  });
-  const ctaHref = firstCategory ? `/categories/${firstCategory.slug}` : "/products";
+  // The button says "Best Sellers", so it has to actually go to a
+  // best-sellers listing — /products already knows how to sort by real
+  // popularity (views + cart-adds + purchases, see src/lib/analytics.ts).
+  const ctaHref = "/products?sort=popular";
 
   return (
     <section className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-surface2 shadow-[0_24px_70px_-24px_rgba(0,0,0,0.75)]">
