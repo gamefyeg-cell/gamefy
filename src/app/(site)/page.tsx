@@ -1,4 +1,10 @@
-import { Hero, TrendingSection, CategorySection, CollectionsSection } from "@/components/storefront/HomeSections";
+import {
+  Hero,
+  TrendingSection,
+  CategorySection,
+  NewArrivalsSection,
+  CollectionsSection,
+} from "@/components/storefront/HomeSections";
 import Reveal from "@/components/storefront/Reveal";
 
 export default function HomePage() {
@@ -13,7 +19,10 @@ export default function HomePage() {
       <Reveal delay={0.1}>
         <CategorySection />
       </Reveal>
-      <Reveal delay={0.14}>
+      <Reveal delay={0.13}>
+        <NewArrivalsSection />
+      </Reveal>
+      <Reveal delay={0.17}>
         <CollectionsSection />
       </Reveal>
     </div>

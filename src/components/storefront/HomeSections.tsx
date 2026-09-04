@@ -35,14 +35,14 @@ type GridProduct = {
   variants: { price: number; currency: string }[];
 };
 
-async function ProductGrid({ products }: { products: GridProduct[] }) {
+async function ProductGrid({ products, cols = "md:grid-cols-5" }: { products: GridProduct[]; cols?: string }) {
   const [activeDiscounts, collectionIdsMap] = await Promise.all([
     getActiveDiscounts(),
     buildCollectionIdsMap(products.map((p) => p.id)),
   ]);
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+    <div className={`grid grid-cols-2 sm:grid-cols-3 ${cols} gap-4`}>
       {products.map((p) => {
         const match = pickBestDiscountForCard(activeDiscounts, p, collectionIdsMap.get(p.id) ?? []);
         return (
@@ -202,6 +202,24 @@ export async function CategorySection() {
           <CategoryTile key={c.id} category={c} />
         ))}
       </div>
+    </section>
+  );
+}
+
+/// --------------------------------------------------------- New arrivals --
+export async function NewArrivalsSection() {
+  const products = await prisma.product.findMany({
+    where: { active: true, type: "GAME" },
+    orderBy: { createdAt: "desc" },
+    take: 6,
+    select: productSelect,
+  });
+  if (products.length === 0) return null;
+
+  return (
+    <section>
+      <h2 className="text-xl md:text-2xl font-heading font-semibold tracking-tight text-white mb-4">New Arrivals</h2>
+      <ProductGrid products={products} cols="md:grid-cols-6" />
     </section>
   );
 }
