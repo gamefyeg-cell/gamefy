@@ -130,23 +130,6 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           </div>
         </details>
 
-        <details className="a-section">
-          <summary>
-            Tags &amp; SEO <span className="a-section-note">— optional</span>
-          </summary>
-          <div className="a-section-body grid gap-4 sm:grid-cols-2">
-            <Field label="Tags" tip="Comma-separated. Used for search and filtering." full>
-              <input name="tags" defaultValue={parseStringArray(product.tags).join(", ")} className="a-input" />
-            </Field>
-            <Field label="SEO title" tip="Overrides the page <title>. Leave blank to use the product name.">
-              <input name="seoTitle" defaultValue={product.seoTitle ?? ""} className="a-input" />
-            </Field>
-            <Field label="SEO description" tip="The search-result snippet. Leave blank to derive it from the description.">
-              <input name="seoDescription" defaultValue={product.seoDescription ?? ""} className="a-input" />
-            </Field>
-          </div>
-        </details>
-
         <div className="flex justify-end">
           <button type="submit" className="a-btn a-btn-primary">
             Save changes

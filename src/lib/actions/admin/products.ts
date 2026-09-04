@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/actions/admin/guard";
 import { logAudit } from "@/lib/actions/admin/audit";
 import { toJson } from "@/lib/json";
 import { encryptSecret } from "@/lib/crypto";
+import { PRODUCT_TYPES, labelFor } from "@/lib/enums";
 
 function slugify(input: string) {
   return input.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -66,25 +67,64 @@ function resolveProductPlatform(formData: FormData): string | null {
   return String(formData.get("platform") ?? "") || null;
 }
 
+/// Freeform keywords for the product, derived from data the admin already
+/// entered — title words, publisher, type — rather than typed by hand.
+/// Nothing on the storefront filters by these today; they exist so search
+/// engines / a future on-site search have something to match against.
+function autoTags(input: { title: string; type: string; publisher: string | null }): string {
+  const words = input.title
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 2);
+  const tags = new Set<string>([input.type.toLowerCase(), ...words]);
+  if (input.publisher) tags.add(input.publisher.toLowerCase());
+  return toJson(Array.from(tags).slice(0, 10));
+}
+
+/// <title> for the product page. Kept short and consistent rather than
+/// admin-typed per product.
+function autoSeoTitle(title: string, publisher: string | null): string {
+  return publisher ? `${title} by ${publisher} — Gamefy` : `${title} — Gamefy`;
+}
+
+/// Search-result snippet. Prefers the real description (stripped of
+/// markdown, capped to a search-snippet length); falls back to a
+/// templated line when there's no description yet.
+function autoSeoDescription(title: string, description: string | null, typeLabel: string): string {
+  if (description) {
+    const plain = description
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/^[\s-]*[-•]\s+/gm, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (plain.length > 20) return plain.length > 160 ? `${plain.slice(0, 157).trimEnd()}…` : plain;
+  }
+  return `Buy ${title} instantly on Gamefy — verified ${typeLabel.toLowerCase()}, delivered fast, paid your way.`;
+}
+
 function productFieldsFrom(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const slugRaw = String(formData.get("slug") ?? "").trim();
+  const type = String(formData.get("type") ?? "GAME");
+  const description = String(formData.get("description") ?? "") || null;
+  const publisher = String(formData.get("publisher") ?? "") || null;
+
   return {
     categoryId: String(formData.get("categoryId") ?? ""),
-    type: String(formData.get("type") ?? "GAME"),
+    type,
     title,
     slug: slugify(slugRaw || title),
-    description: String(formData.get("description") ?? "") || null,
+    description,
     buyerNotice: String(formData.get("buyerNotice") ?? "") || null,
     requiresNoticeAck: formData.get("requiresNoticeAck") === "on",
-    publisher: String(formData.get("publisher") ?? "") || null,
+    publisher,
     platform: resolveProductPlatform(formData),
-    tags: csvToJsonArray(String(formData.get("tags") ?? "")),
+    tags: autoTags({ title, type, publisher }),
     coverUrl: String(formData.get("coverUrl") ?? "") || null,
     images: parseImagesField(String(formData.get("images") ?? "[]")),
     videoUrl: parseYoutubeId(String(formData.get("videoUrl") ?? "")),
-    seoTitle: String(formData.get("seoTitle") ?? "") || null,
-    seoDescription: String(formData.get("seoDescription") ?? "") || null,
+    seoTitle: autoSeoTitle(title, publisher),
+    seoDescription: autoSeoDescription(title, description, labelFor(PRODUCT_TYPES, type)),
     active: formData.get("active") === "on",
   };
 }

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
 import Link from "next/link";
@@ -13,6 +14,28 @@ import ProductCard from "@/components/storefront/ProductCard";
 import HowItWorks from "@/components/storefront/HowItWorks";
 import ProductFaq from "@/components/storefront/ProductFaq";
 import Reveal from "@/components/storefront/Reveal";
+
+/// seoTitle / seoDescription are generated automatically on every product
+/// save (src/lib/actions/admin/products.ts) — this is what actually
+/// consumes them, so that auto-generation has somewhere to matter.
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await prisma.product.findUnique({
+    where: { slug },
+    select: { title: true, seoTitle: true, seoDescription: true, coverUrl: true, images: true, active: true },
+  });
+  if (!product || !product.active) return { title: "Product not found" };
+
+  const title = product.seoTitle ?? product.title;
+  const description = product.seoDescription ?? undefined;
+  const image = product.coverUrl ?? parseStringArray(product.images)[0];
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, images: image ? [{ url: image }] : undefined },
+  };
+}
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
