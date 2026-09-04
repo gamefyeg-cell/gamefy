@@ -7,7 +7,7 @@ import { getSession } from "@/lib/session";
 import { getSelectedRegion } from "@/lib/region";
 import { toJson } from "@/lib/json";
 import { getActiveDiscounts, buildCollectionIdsMap, pickBestDiscount } from "@/lib/discounts";
-import { getRequestIp, isIpBlocked, logCustomerEvent } from "@/lib/moderation";
+import { countRecentEvents, getRequestIp, isIpBlocked, logCustomerEvent } from "@/lib/moderation";
 
 export interface CheckoutState {
   error?: string;
@@ -43,6 +43,8 @@ export async function placeOrderAction(_prev: CheckoutState, formData: FormData)
   if (!email) {
     return { error: "Enter an email address to receive your order." };
   }
+
+  const ip = await getRequestIp();
 
   const buyerName = String(formData.get("buyerName") ?? "").trim();
   const buyerPhone = String(formData.get("buyerPhone") ?? "").trim();
@@ -96,8 +98,18 @@ export async function placeOrderAction(_prev: CheckoutState, formData: FormData)
     buildCollectionIdsMap(variants.map((v) => v.productId)),
   ]);
   if (couponCode) {
+    // Throttle promo-code guessing (per IP + per email, 15-min window).
+    const badTries = await countRecentEvents({ types: ["coupon_failed"], minutes: 15, ip, email });
+    if (badTries >= 8) {
+      await logCustomerEvent({ email, ip, type: "checkout_throttled", detail: "coupon guessing" });
+      return { error: "Too many invalid codes. Please wait a few minutes and try again." };
+    }
     const codeExists = activeDiscounts.some((d) => d.code?.toUpperCase() === couponCode.toUpperCase());
-    if (!codeExists) return { error: `Coupon "${couponCode}" is invalid or expired.` };
+    if (!codeExists) {
+      await logCustomerEvent({ email, ip, type: "coupon_failed", detail: couponCode.slice(0, 32) });
+      return { error: `Coupon "${couponCode}" is invalid or expired.` };
+    }
+    await logCustomerEvent({ email, ip, type: "coupon_used", detail: couponCode.slice(0, 32) });
   }
 
   const lineDiscounts = new Map<string, { amount: number; name: string } | null>();
@@ -125,10 +137,16 @@ export async function placeOrderAction(_prev: CheckoutState, formData: FormData)
   const user = session ? await prisma.user.findUnique({ where: { id: session.userId } }) : await getOrCreateGuestUser(email);
   if (!user) return { error: "Could not resolve account." };
 
-  const ip = await getRequestIp();
   if (user.bannedAt || (await isIpBlocked(ip))) {
     await logCustomerEvent({ userId: user.id, email, ip, type: "login_blocked", detail: "checkout blocked" });
     return { error: "We can't process this order. Contact support if you think this is a mistake." };
+  }
+
+  // Order-flood throttle — 8 per IP or account per hour.
+  const recentOrders = await countRecentEvents({ types: ["order_placed"], minutes: 60, ip, userId: user.id });
+  if (recentOrders >= 8) {
+    await logCustomerEvent({ userId: user.id, email, ip, type: "checkout_throttled", detail: "order flood" });
+    return { error: "You've placed several orders in a short time. Please wait a bit before placing another." };
   }
 
   const order = await prisma.$transaction(async (tx) => {

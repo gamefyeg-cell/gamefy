@@ -20,7 +20,49 @@ export type CustomerEventType =
   | "login_blocked"
   | "order_placed"
   | "order_verified"
-  | "reveal";
+  | "reveal"
+  | "reveal_failed"
+  | "coupon_failed"
+  | "coupon_used"
+  | "checkout_throttled";
+
+/// Abuse-signal event types — what the admin Security page watches and the
+/// throttles count.
+export const THREAT_EVENT_TYPES: CustomerEventType[] = [
+  "login_failed",
+  "login_blocked",
+  "reveal_failed",
+  "coupon_failed",
+  "checkout_throttled",
+];
+
+/// Generic sliding-window counter over customer_events, matched on ANY of
+/// the identity dimensions given (ip / userId / email) so rotating one
+/// doesn't defeat it.
+export async function countRecentEvents(opts: {
+  types: CustomerEventType[];
+  minutes: number;
+  ip?: string | null;
+  userId?: string | null;
+  email?: string | null;
+}): Promise<number> {
+  const idOr: Array<Record<string, string>> = [];
+  if (opts.ip) idOr.push({ ip: opts.ip });
+  if (opts.userId) idOr.push({ userId: opts.userId });
+  if (opts.email) idOr.push({ email: opts.email });
+  if (idOr.length === 0) return 0;
+  try {
+    return await prisma.customerEvent.count({
+      where: {
+        type: { in: opts.types },
+        createdAt: { gte: new Date(Date.now() - opts.minutes * 60_000) },
+        OR: idOr,
+      },
+    });
+  } catch {
+    return 0;
+  }
+}
 
 /// Count recent failed logins for rate-limiting. Cheap — hits the
 /// customer_events index on (ip) / (email) + a createdAt range.
