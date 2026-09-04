@@ -7,9 +7,23 @@ import { prisma } from "@/lib/prisma";
 import { createSession, clearSession } from "@/lib/session";
 import { sendMail } from "@/lib/mailer";
 import { ADMIN_ROLES, type UserRole } from "@/lib/enums";
-import { getRequestIp, isIpBlocked, logCustomerEvent } from "@/lib/moderation";
+import {
+  getRequestIp,
+  isIpBlocked,
+  logCustomerEvent,
+  recentLoginFailures,
+  recentRegistrations,
+} from "@/lib/moderation";
 
 const BLOCKED_MESSAGE = "We can't process this right now. Contact support if you think this is a mistake.";
+
+// Sliding-window login throttle (customer_events backed — no Redis).
+const LOGIN_WINDOW_MIN = 15;
+const LOGIN_MAX_PER_IP = 15; // across all accounts from one address
+const LOGIN_MAX_PER_EMAIL = 6; // against a single account
+const REGISTER_WINDOW_MIN = 60;
+const REGISTER_MAX_PER_IP = 8;
+const THROTTLED_MESSAGE = "Too many attempts. Wait a few minutes and try again.";
 
 export interface AuthActionState {
   error?: string;
@@ -40,6 +54,10 @@ export async function registerAction(_prev: AuthActionState, formData: FormData)
     await logCustomerEvent({ email, ip, type: "login_blocked", detail: "register: blocked IP" });
     return { error: BLOCKED_MESSAGE };
   }
+  if ((await recentRegistrations(ip, REGISTER_WINDOW_MIN)) >= REGISTER_MAX_PER_IP) {
+    await logCustomerEvent({ email, ip, type: "login_blocked", detail: "register: rate limited" });
+    return { error: THROTTLED_MESSAGE };
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -62,13 +80,23 @@ export async function loginAction(_prev: AuthActionState, formData: FormData): P
   const next = String(formData.get("next") ?? "");
 
   const ip = await getRequestIp();
+
+  // Throttle before doing any bcrypt work.
+  const fails = await recentLoginFailures({ ip, email, minutes: LOGIN_WINDOW_MIN });
+  if (fails.byIp >= LOGIN_MAX_PER_IP || fails.byEmail >= LOGIN_MAX_PER_EMAIL) {
+    await logCustomerEvent({ email, ip, type: "login_blocked", detail: "rate limited" });
+    return { error: THROTTLED_MESSAGE };
+  }
+
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.passwordHash) {
+    await logCustomerEvent({ email, ip, type: "login_failed", detail: "unknown email" });
     return { error: "Invalid email or password." };
   }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
+    await logCustomerEvent({ userId: user.id, email, ip, type: "login_failed", detail: "wrong password" });
     return { error: "Invalid email or password." };
   }
 

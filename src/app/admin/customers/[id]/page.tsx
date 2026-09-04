@@ -8,6 +8,7 @@ import { banUserAction, unbanUserAction, blockIpAction } from "@/lib/actions/adm
 const EVENT_LABEL: Record<string, string> = {
   register: "Registered",
   login: "Logged in",
+  login_failed: "Failed login",
   login_blocked: "Blocked attempt",
   order_placed: "Placed an order",
   order_verified: "Order verified",

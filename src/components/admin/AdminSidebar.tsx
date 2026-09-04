@@ -36,6 +36,7 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: s
     label: "People",
     items: [
       { href: "/admin/customers", label: "Customers", icon: "◍" },
+      { href: "/admin/security", label: "Login security", icon: "⚠" },
       { href: "/admin/blocked-ips", label: "Blocked IPs", icon: "⦸" },
     ],
   },
