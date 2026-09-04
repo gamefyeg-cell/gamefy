@@ -150,6 +150,14 @@ export default function ProductBuyBox({
       <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-accent via-accent-soft to-gold" />
 
       <div className="flex flex-col gap-5 p-5 sm:p-6">
+        {/* Which platform this is, even with a single option — never leave
+            it unlabeled just because there's nothing to switch between. */}
+        {usable.length === 1 && variant.platform && (
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold text-slate-200">
+            {PLATFORM_ICON[variant.platform] ?? "🎮"} {labelFor(PLATFORMS, variant.platform)}
+          </span>
+        )}
+
         {/* Option picker */}
         {usable.length > 1 && (
           <div className="flex flex-col gap-2">
@@ -250,102 +258,105 @@ export default function ProductBuyBox({
               </span>
             )}
           </div>
+        </div>
 
-          {/* Activation region — called out on its own, bold and colored,
-              so it's never the thing someone misses before buying. */}
+        {/* One cohesive card for everything else you need to know — region,
+            what's included, policy — as hairline-divided sections rather
+            than a stack of separately-colored boxes. */}
+        <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
           {variant.activationRegion && (
-            <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-accent/40 bg-accent/[0.08] px-3 py-2 text-[13px] font-semibold text-accent-soft">
-              <span className="text-base" aria-hidden>
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent/10 text-base" aria-hidden>
                 {regionIcon(variant.activationRegion.kind)}
               </span>
-              Activates in {variant.activationRegion.name}
-              {variant.regionLockType !== "NONE" && (
-                <span className="font-normal text-slate-400">· {labelFor(REGION_LOCK_TYPES, variant.regionLockType)}</span>
-              )}
+              <span className="text-[13px]">
+                <span className="font-semibold text-accent-soft">Activates in {variant.activationRegion.name}</span>
+                {variant.regionLockType !== "NONE" && (
+                  <span className="text-slate-500"> · {labelFor(REGION_LOCK_TYPES, variant.regionLockType)}</span>
+                )}
+              </span>
             </div>
           )}
-        </div>
 
-        {/* What you get */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">What you get</span>
-          <ul className="mt-3 flex flex-col gap-2.5 text-[13px] text-slate-300">
-            <li className="flex items-center gap-3">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-sm">
-                {del.icon}
-              </span>
-              <span>{del.text}</span>
-            </li>
-            {variant.warrantyDays != null && (
+          <div className="px-4 py-4">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">What you get</span>
+            <ul className="mt-3 flex flex-col gap-2.5 text-[13px] text-slate-300">
               <li className="flex items-center gap-3">
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-sm">
-                  🛡️
+                  {del.icon}
                 </span>
-                <span>
-                  <span className="text-white">{variant.warrantyDays}-day</span> replacement warranty
-                </span>
+                <span>{del.text}</span>
               </li>
-            )}
-            {variant.accountAccessLevel && (
+              {variant.warrantyDays != null && (
+                <li className="flex items-center gap-3">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-sm">
+                    🛡️
+                  </span>
+                  <span>
+                    <span className="text-white">{variant.warrantyDays}-day</span> replacement warranty
+                  </span>
+                </li>
+              )}
+              {variant.accountAccessLevel && (
+                <li className="flex items-center gap-3">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-sm">
+                    🔑
+                  </span>
+                  <span>{labelFor(ACCOUNT_ACCESS_LEVELS, variant.accountAccessLevel)}</span>
+                </li>
+              )}
               <li className="flex items-center gap-3">
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-sm">
-                  🔑
+                  🔒
                 </span>
-                <span>{labelFor(ACCOUNT_ACCESS_LEVELS, variant.accountAccessLevel)}</span>
+                <span>One-time encrypted reveal — every access is logged</span>
               </li>
+            </ul>
+            {(variant.redemptionInstructions || variant.activationInstructions || variant.accountDeliveryNote) && (
+              <div className="mt-3 flex flex-col gap-1.5 border-t border-white/10 pt-3 text-xs text-slate-400">
+                {variant.redemptionInstructions && (
+                  <p>
+                    <span className="font-medium text-slate-300">How to redeem: </span>
+                    {variant.redemptionInstructions}
+                  </p>
+                )}
+                {variant.activationInstructions && (
+                  <p>
+                    <span className="font-medium text-slate-300">Activation: </span>
+                    {variant.activationInstructions}
+                  </p>
+                )}
+                {variant.accountDeliveryNote && (
+                  <p>
+                    <span className="font-medium text-slate-300">Note: </span>
+                    {variant.accountDeliveryNote}
+                  </p>
+                )}
+              </div>
             )}
-            <li className="flex items-center gap-3">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-sm">
-                🔒
-              </span>
-              <span>One-time encrypted reveal — every access is logged</span>
-            </li>
-          </ul>
-          {(variant.redemptionInstructions || variant.activationInstructions || variant.accountDeliveryNote) && (
-            <div className="mt-3 flex flex-col gap-1.5 border-t border-white/10 pt-3 text-xs text-slate-400">
-              {variant.redemptionInstructions && (
-                <p>
-                  <span className="font-medium text-slate-300">How to redeem: </span>
-                  {variant.redemptionInstructions}
-                </p>
-              )}
-              {variant.activationInstructions && (
-                <p>
-                  <span className="font-medium text-slate-300">Activation: </span>
-                  {variant.activationInstructions}
-                </p>
-              )}
-              {variant.accountDeliveryNote && (
-                <p>
-                  <span className="font-medium text-slate-300">Note: </span>
-                  {variant.accountDeliveryNote}
-                </p>
-              )}
-            </div>
+          </div>
+
+          {/* Collapsed by default so a long policy note doesn't dominate
+              the card; the header alone says enough to know whether to
+              open it. */}
+          {buyerNotice && (
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2.5">
+                  <span className="text-base" aria-hidden>
+                    ⚠️
+                  </span>
+                  <span>
+                    <span className="block text-xs font-semibold text-warn">Before you buy</span>
+                    <span className="block text-[11px] font-normal text-slate-500">Account access, refund &amp; region policy</span>
+                  </span>
+                </span>
+                <span className="shrink-0 text-slate-500 transition-transform duration-200 group-open:rotate-180">⌄</span>
+              </summary>
+              <div className="px-4 pb-4 text-xs leading-relaxed text-slate-300">{renderLiteMarkdown(buyerNotice)}</div>
+            </details>
           )}
         </div>
-
-        {/* Before you buy — right where it's relevant: next to the button
-            that acts on it. Collapsed by default so a long policy note
-            doesn't dominate the box; the header alone says enough to know
-            whether to open it. */}
-        {buyerNotice && (
-          <details className="group overflow-hidden rounded-xl border border-warn/30 bg-warn/[0.06]">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-              <span className="flex items-center gap-2.5">
-                <span className="text-base" aria-hidden>
-                  ⚠️
-                </span>
-                <span>
-                  <span className="block text-xs font-semibold text-warn">Before you buy</span>
-                  <span className="block text-[11px] font-normal text-slate-500">Account access, refund &amp; region policy</span>
-                </span>
-              </span>
-              <span className="shrink-0 text-slate-500 transition-transform duration-200 group-open:rotate-180">⌄</span>
-            </summary>
-            <div className="px-4 pb-4 text-xs leading-relaxed text-slate-300">{renderLiteMarkdown(buyerNotice)}</div>
-          </details>
-        )}
 
         {/* Buy */}
         <form id="buybox-form" onSubmit={handleAdd} className="flex flex-col gap-3">
