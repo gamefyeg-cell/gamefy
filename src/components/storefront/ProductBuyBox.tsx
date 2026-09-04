@@ -235,52 +235,69 @@ export default function ProductBuyBox({
               <span className="text-success">You save {formatMoney(save, variant.currency)}{variant.discount?.name ? ` · ${variant.discount.name}` : ""}</span>
             )}
             {stockLeft === null ? (
-              <span className="text-slate-500">● In stock</span>
+              <span className="inline-flex items-center gap-1.5 text-slate-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-success" /> In stock
+              </span>
             ) : outOfStock ? (
-              <span className="text-danger">● {variant.outOfStockMessage || "Out of stock"}</span>
+              <span className="inline-flex items-center gap-1.5 text-danger">
+                <span className="h-1.5 w-1.5 rounded-full bg-danger" /> {variant.outOfStockMessage || "Out of stock"}
+              </span>
             ) : low ? (
               <span className="font-medium text-warn">🔥 Only {stockLeft} left</span>
             ) : (
-              <span className="text-slate-500">● {stockLeft} in stock</span>
+              <span className="inline-flex items-center gap-1.5 text-slate-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-success" /> {stockLeft} in stock
+              </span>
             )}
           </div>
+
+          {/* Activation region — called out on its own, bold and colored,
+              so it's never the thing someone misses before buying. */}
+          {variant.activationRegion && (
+            <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-accent/40 bg-accent/[0.08] px-3 py-2 text-[13px] font-semibold text-accent-soft">
+              <span className="text-base" aria-hidden>
+                {regionIcon(variant.activationRegion.kind)}
+              </span>
+              Activates in {variant.activationRegion.name}
+              {variant.regionLockType !== "NONE" && (
+                <span className="font-normal text-slate-400">· {labelFor(REGION_LOCK_TYPES, variant.regionLockType)}</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* What you get */}
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">What you get</span>
-          <ul className="mt-2.5 flex flex-col gap-2 text-[13px] text-slate-300">
-            <li className="flex gap-2.5">
-              <span className="shrink-0">{del.icon}</span>
+          <ul className="mt-3 flex flex-col gap-2.5 text-[13px] text-slate-300">
+            <li className="flex items-center gap-3">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-sm">
+                {del.icon}
+              </span>
               <span>{del.text}</span>
             </li>
-            {variant.activationRegion && (
-              <li className="flex gap-2.5">
-                <span className="shrink-0">{regionIcon(variant.activationRegion.kind)}</span>
-                <span>
-                  Works in <span className="text-white">{variant.activationRegion.name}</span>
-                  {variant.regionLockType !== "NONE" && (
-                    <span className="text-slate-500"> · {labelFor(REGION_LOCK_TYPES, variant.regionLockType)}</span>
-                  )}
-                </span>
-              </li>
-            )}
             {variant.warrantyDays != null && (
-              <li className="flex gap-2.5">
-                <span className="shrink-0">🛡️</span>
+              <li className="flex items-center gap-3">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-sm">
+                  🛡️
+                </span>
                 <span>
                   <span className="text-white">{variant.warrantyDays}-day</span> replacement warranty
                 </span>
               </li>
             )}
             {variant.accountAccessLevel && (
-              <li className="flex gap-2.5">
-                <span className="shrink-0">🔑</span>
+              <li className="flex items-center gap-3">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-sm">
+                  🔑
+                </span>
                 <span>{labelFor(ACCOUNT_ACCESS_LEVELS, variant.accountAccessLevel)}</span>
               </li>
             )}
-            <li className="flex gap-2.5">
-              <span className="shrink-0">🔒</span>
+            <li className="flex items-center gap-3">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-sm">
+                🔒
+              </span>
               <span>One-time encrypted reveal — every access is logged</span>
             </li>
           </ul>
@@ -309,12 +326,25 @@ export default function ProductBuyBox({
         </div>
 
         {/* Before you buy — right where it's relevant: next to the button
-            that acts on it, not off in the page body. */}
+            that acts on it. Collapsed by default so a long policy note
+            doesn't dominate the box; the header alone says enough to know
+            whether to open it. */}
         {buyerNotice && (
-          <div className="notice-box !p-3.5">
-            <div className="mb-1 text-xs font-semibold text-warn">⚠ Before you buy</div>
-            <div className="text-xs leading-relaxed text-slate-200">{renderLiteMarkdown(buyerNotice)}</div>
-          </div>
+          <details className="group overflow-hidden rounded-xl border border-warn/30 bg-warn/[0.06]">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+              <span className="flex items-center gap-2.5">
+                <span className="text-base" aria-hidden>
+                  ⚠️
+                </span>
+                <span>
+                  <span className="block text-xs font-semibold text-warn">Before you buy</span>
+                  <span className="block text-[11px] font-normal text-slate-500">Account access, refund &amp; region policy</span>
+                </span>
+              </span>
+              <span className="shrink-0 text-slate-500 transition-transform duration-200 group-open:rotate-180">⌄</span>
+            </summary>
+            <div className="px-4 pb-4 text-xs leading-relaxed text-slate-300">{renderLiteMarkdown(buyerNotice)}</div>
+          </details>
         )}
 
         {/* Buy */}
