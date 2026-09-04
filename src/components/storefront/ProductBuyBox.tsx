@@ -8,7 +8,6 @@ import { formatMoney } from "@/lib/format";
 import { labelFor, REGION_LOCK_TYPES, ACCOUNT_ACCESS_LEVELS, PLATFORMS } from "@/lib/enums";
 import { addToCartAction } from "@/lib/actions/site";
 import { springs, tapFeedback } from "@/lib/motion";
-import { renderLiteMarkdown } from "@/lib/richtext";
 
 interface Variant {
   id: string;
@@ -78,11 +77,9 @@ function regionIcon(kind?: string) {
 export default function ProductBuyBox({
   variants,
   customFields,
-  buyerNotice,
 }: {
   variants: Variant[];
   customFields: CustomField[];
-  buyerNotice?: string | null;
 }) {
   const router = useRouter();
   const usable = useMemo(() => variants.filter((v) => v.active), [variants]);
@@ -340,27 +337,6 @@ export default function ProductBuyBox({
               </div>
             )}
           </div>
-
-          {/* Collapsed by default so a long policy note doesn't dominate
-              the card; the header alone says enough to know whether to
-              open it. */}
-          {buyerNotice && (
-            <details className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 [&::-webkit-details-marker]:hidden">
-                <span className="flex items-center gap-2.5">
-                  <span className="text-base" aria-hidden>
-                    ⚠️
-                  </span>
-                  <span>
-                    <span className="block text-xs font-semibold text-warn">Before you buy</span>
-                    <span className="block text-[11px] font-normal text-slate-500">Account access, refund &amp; region policy</span>
-                  </span>
-                </span>
-                <span className="shrink-0 text-slate-500 transition-transform duration-200 group-open:rotate-180">⌄</span>
-              </summary>
-              <div className="px-4 pb-4 text-xs leading-relaxed text-slate-300">{renderLiteMarkdown(buyerNotice)}</div>
-            </details>
-          )}
         </div>
 
         {/* Buy */}

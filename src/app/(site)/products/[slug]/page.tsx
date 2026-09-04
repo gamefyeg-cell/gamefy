@@ -136,7 +136,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
           <div>
             <Reveal delay={0.1} className="lg:sticky lg:top-24">
-              <ProductBuyBox variants={variantsWithDiscount} customFields={product.customFields} buyerNotice={buyerNotice} />
+              <ProductBuyBox variants={variantsWithDiscount} customFields={product.customFields} />
             </Reveal>
           </div>
         </div>
@@ -147,7 +147,15 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </Reveal>
 
         <Reveal>
-          <div className="max-w-3xl">
+          <div className={`grid items-start gap-6 ${buyerNotice ? "lg:grid-cols-2" : "max-w-3xl"}`}>
+            {buyerNotice && (
+              <section className="flex flex-col gap-3">
+                <h2 className="font-heading text-lg font-semibold text-white">Before you buy</h2>
+                <div className="rounded-xl border border-warn/30 bg-warn/[0.06] p-4 text-[13px] leading-relaxed text-slate-300">
+                  {renderLiteMarkdown(buyerNotice)}
+                </div>
+              </section>
+            )}
             <ProductFaq warrantyDays={maxWarranty} regionText={regionText} hasAccountVariant={hasAccountVariant} />
           </div>
         </Reveal>
