@@ -145,11 +145,15 @@ export function WizardNav({
         ← Back
       </button>
       {isLast ? (
-        <button type="submit" className="a-btn a-btn-primary">
+        // Distinct `key` from the "Next" button below so React mounts a
+        // fresh node instead of re-typing the button you just clicked —
+        // re-typing a mid-click button to `submit` makes the browser fire
+        // the form on the spot.
+        <button key="wiz-submit" type="submit" className="a-btn a-btn-primary">
           {submitLabel}
         </button>
       ) : (
-        <button type="button" className="a-btn a-btn-primary" onClick={onNext}>
+        <button key="wiz-next" type="button" className="a-btn a-btn-primary" onClick={onNext}>
           Next →
         </button>
       )}
