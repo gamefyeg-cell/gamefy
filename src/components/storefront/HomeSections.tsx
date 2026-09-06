@@ -207,7 +207,7 @@ export async function CategorySection() {
 /// --------------------------------------------------------- New arrivals --
 export async function NewArrivalsSection() {
   const products = await prisma.product.findMany({
-    where: { active: true, type: "GAME" },
+    where: { active: true },
     orderBy: { createdAt: "desc" },
     take: 6,
     select: productSelect,
