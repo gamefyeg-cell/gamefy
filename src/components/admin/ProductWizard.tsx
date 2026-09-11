@@ -61,19 +61,33 @@ export default function ProductWizard({
 
   const [type, setType] = useState("GAME");
   const [platforms, setPlatforms] = useState<string[]>([]);
+  const [giftcardValuesRaw, setGiftcardValuesRaw] = useState("");
   const [addPricing, setAddPricing] = useState(true);
   const [vui, setVui] = useState<VUI[]>([makeVUI("GAME")]);
 
-  const showPlatformStep = type === "GAME" || type === "ACCOUNT";
-  const variantKeys = useMemo(() => (platforms.length ? platforms : [""]), [platforms]);
+  const isGiftcard = type === "GIFTCARD";
+  const showAxisStep = type === "GAME" || type === "ACCOUNT" || isGiftcard;
+  const giftcardValues = useMemo(
+    () =>
+      giftcardValuesRaw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    [giftcardValuesRaw]
+  );
+  // The "axis" is whatever this product has more than one of — platform
+  // for games/accounts, face value for gift cards. Each axis value gets
+  // its own price/region/stock step.
+  const axisValues = isGiftcard ? giftcardValues : platforms;
+  const variantKeys = useMemo(() => (axisValues.length ? axisValues : [""]), [axisValues]);
 
   const stepKeys = useMemo(() => {
     const keys = ["basics", "media", "description"];
-    if (showPlatformStep) keys.push("platforms");
+    if (showAxisStep) keys.push("axis");
     if (addPricing) variantKeys.forEach((_, i) => keys.push(`v${i}`));
     keys.push("review");
     return keys;
-  }, [showPlatformStep, addPricing, variantKeys]);
+  }, [showAxisStep, addPricing, variantKeys]);
 
   const { step: safeStep, currentKey, maxVisited, isLast, next, back, jump, onSubmit } = useStepper(formRef, stepKeys);
 
@@ -87,20 +101,20 @@ export default function ProductWizard({
     });
   }, [variantKeys.length, type]);
 
-  const [review, setReview] = useState<{ platform: string; price: string; currency: string; saleMode: string }[]>([]);
+  const [review, setReview] = useState<{ axisLabel: string; price: string; currency: string; saleMode: string }[]>([]);
   useEffect(() => {
     if (currentKey !== "review") return;
     const f = formRef.current;
     if (!f) return;
     setReview(
       (addPricing ? variantKeys : []).map((pk, i) => ({
-        platform: pk,
+        axisLabel: pk,
         price: (f.elements.namedItem(`v${i}_price`) as HTMLInputElement)?.value ?? "",
         currency: (f.elements.namedItem(`v${i}_currency`) as HTMLSelectElement)?.value ?? "",
-        saleMode: (f.elements.namedItem(`v${i}_saleMode`) as HTMLSelectElement)?.value ?? "",
+        saleMode: vui[i]?.saleMode ?? "",
       }))
     );
-  }, [currentKey, addPricing, variantKeys]);
+  }, [currentKey, addPricing, variantKeys, vui]);
 
   function setVuiAt(i: number, patch: Partial<VUI>) {
     setVui((prev) => prev.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
@@ -109,20 +123,25 @@ export default function ProductWizard({
     setType(nextType);
     setVui((prev) => prev.map(() => makeVUI(nextType)));
     if (nextType !== "GAME" && nextType !== "ACCOUNT") setPlatforms([]);
+    if (nextType !== "GIFTCARD") setGiftcardValuesRaw("");
   }
   function togglePlatform(value: string, on: boolean) {
     setPlatforms((prev) => (on ? [...prev, value] : prev.filter((p) => p !== value)));
+  }
+
+  function axisDisplayLabel(pk: string) {
+    return isGiftcard ? pk : labelFor(PLATFORMS, pk);
   }
 
   function stepLabel(key: string) {
     if (key === "basics") return "Name";
     if (key === "media") return "Images";
     if (key === "description") return "Description";
-    if (key === "platforms") return "Platforms";
+    if (key === "axis") return isGiftcard ? "Values" : "Platforms";
     if (key === "review") return "Review";
     const i = Number(key.slice(1));
     const pk = variantKeys[i];
-    return pk ? labelFor(PLATFORMS, pk) : "Price";
+    return pk ? axisDisplayLabel(pk) : "Price";
   }
 
   const isSub = type === "SUBSCRIPTION";
@@ -154,7 +173,7 @@ export default function ProductWizard({
               ))}
             </select>
           </Field>
-          <Field label="Type" tip="Changes what you're asked next — subscriptions get a plan picker, games/accounts get a step per platform.">
+          <Field label="Type" tip="Changes what you're asked next — subscriptions get a plan picker, games/accounts get a step per platform, gift cards get a step per value.">
             <select name="type" className="a-select" value={type} onChange={(e) => onTypeChange(e.target.value)}>
               {PRODUCT_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -226,31 +245,59 @@ export default function ProductWizard({
           </label>
         </div>
 
-        {/* -------- Platforms -------- */}
-        {showPlatformStep && (
-          <div data-stepkey="platforms" hidden={currentKey !== "platforms"} className="a-step-panel">
-            <StepHead title="Which platforms?">
-              You’ll set a price for each one on its own step. Leave empty for a single option.
-            </StepHead>
-            <div className="a-span-2 flex flex-wrap gap-2">
-              {PLATFORMS.map((p) => (
-                <label key={p.value} className="a-chip">
+        {/* -------- Axis: platforms (game/account) or values (gift card) -------- */}
+        {showAxisStep && (
+          <div data-stepkey="axis" hidden={currentKey !== "axis"} className="a-step-panel">
+            {isGiftcard ? (
+              <>
+                <StepHead title="Which values do you sell?">
+                  e.g. a Steam card sold as 10 / 25 / 50 / 100 — each gets its own price, region and stock on the
+                  next step.
+                </StepHead>
+                <Field
+                  label="Values"
+                  full
+                  hint='Comma-separated, in whatever way you want them labeled — e.g. "10, 25, 50, 100" or "100 EGP, 200 EGP".'
+                >
                   <input
-                    type="checkbox"
-                    checked={platforms.includes(p.value)}
-                    onChange={(e) => togglePlatform(p.value, e.target.checked)}
+                    className="a-input"
+                    value={giftcardValuesRaw}
+                    onChange={(e) => setGiftcardValuesRaw(e.target.value)}
+                    placeholder="10, 25, 50, 100"
                   />
-                  {p.label}
-                </label>
-              ))}
-            </div>
-            <p className="a-span-2 a-hint">
-              {platforms.length === 0
-                ? "→ one price step"
-                : `→ ${platforms.length} step${platforms.length === 1 ? "" : "s"}: ${platforms
-                    .map((p) => labelFor(PLATFORMS, p))
-                    .join(", ")}`}
-            </p>
+                </Field>
+                <p className="a-span-2 a-hint">
+                  {giftcardValues.length === 0
+                    ? "→ one price step"
+                    : `→ ${giftcardValues.length} step${giftcardValues.length === 1 ? "" : "s"}: ${giftcardValues.join(", ")}`}
+                </p>
+              </>
+            ) : (
+              <>
+                <StepHead title="Which platforms?">
+                  You’ll set a price for each one on its own step. Leave empty for a single option.
+                </StepHead>
+                <div className="a-span-2 flex flex-wrap gap-2">
+                  {PLATFORMS.map((p) => (
+                    <label key={p.value} className="a-chip">
+                      <input
+                        type="checkbox"
+                        checked={platforms.includes(p.value)}
+                        onChange={(e) => togglePlatform(p.value, e.target.checked)}
+                      />
+                      {p.label}
+                    </label>
+                  ))}
+                </div>
+                <p className="a-span-2 a-hint">
+                  {platforms.length === 0
+                    ? "→ one price step"
+                    : `→ ${platforms.length} step${platforms.length === 1 ? "" : "s"}: ${platforms
+                        .map((p) => labelFor(PLATFORMS, p))
+                        .join(", ")}`}
+                </p>
+              </>
+            )}
           </div>
         )}
 
@@ -262,10 +309,14 @@ export default function ProductWizard({
             const durationValue = u.durationPreset === "__custom__" ? u.durationCustom : u.durationPreset;
             return (
               <div key={i} data-stepkey={`v${i}`} hidden={currentKey !== `v${i}`} className="a-step-panel">
-                <StepHead title={pk ? `Price — ${labelFor(PLATFORMS, pk)}` : "Price & availability"}>
+                <StepHead title={pk ? `Price — ${axisDisplayLabel(pk)}` : "Price & availability"}>
                   Just the essentials. Everything else has a sensible default under <em>More options</em>.
                 </StepHead>
-                <input type="hidden" name={`v${i}_platform`} value={pk} />
+                {isGiftcard ? (
+                  <input type="hidden" name={`v${i}_edition`} value={pk} />
+                ) : (
+                  <input type="hidden" name={`v${i}_platform`} value={pk} />
+                )}
 
                 <Field label="Price" required>
                   <input name={`v${i}_price`} type="number" step="0.01" min="0" required className="a-input" placeholder="1200" />
@@ -279,6 +330,16 @@ export default function ProductWizard({
                     ))}
                   </select>
                 </Field>
+
+                {isGiftcard && (
+                  <Field
+                    label="Region"
+                    full
+                    tip="Which store region this code redeems in — e.g. a Steam US wallet code won't work on a Steam UK account."
+                  >
+                    <ActivationRegionSelect name={`v${i}_activationRegionId`} regions={activationRegions} />
+                  </Field>
+                )}
 
                 <Field label="How it's sold" full tip="Key = buyer redeems a code. Full / Shared Account = you hand over login details. Direct Top-Up = you credit their game account.">
                   <select
@@ -324,7 +385,7 @@ export default function ProductWizard({
                 )}
 
                 <details className="a-more">
-                  <summary>More options for this {pk ? "platform" : "option"}</summary>
+                  <summary>More options for this {pk ? (isGiftcard ? "value" : "platform") : "option"}</summary>
                   <div className="a-more-body">
                     <Field label="Delivery method" tip="Usually auto-picked from “How it's sold”. Change only if you deliver a different way.">
                       <select
@@ -367,9 +428,11 @@ export default function ProductWizard({
                       </Field>
                     )}
 
-                    <Field label="Where it works" full tip="Global, a zone (Europe, MENA…), or one country. Separate from the price currency.">
-                      <ActivationRegionSelect name={`v${i}_activationRegionId`} regions={activationRegions} />
-                    </Field>
+                    {!isGiftcard && (
+                      <Field label="Where it works" full tip="Global, a zone (Europe, MENA…), or one country. Separate from the price currency.">
+                        <ActivationRegionSelect name={`v${i}_activationRegionId`} regions={activationRegions} />
+                      </Field>
+                    )}
                     <Field label="Region strictness" tip="How strict the region above is — “works anywhere, may need a VPN” vs. strictly locked.">
                       <select name={`v${i}_regionLockType`} className="a-select" defaultValue="NONE">
                         {REGION_LOCK_TYPES.map((r) => (
@@ -424,8 +487,8 @@ export default function ProductWizard({
               {labelFor(PRODUCT_TYPES, type)}
             </div>
             <div>
-              <span className="a-sub block">Platforms</span>
-              {platforms.length ? platforms.map((p) => labelFor(PLATFORMS, p)).join(", ") : "Single option"}
+              <span className="a-sub block">{isGiftcard ? "Values" : "Platforms"}</span>
+              {axisValues.length ? (isGiftcard ? axisValues.join(", ") : axisValues.map((p) => labelFor(PLATFORMS, p)).join(", ")) : "Single option"}
             </div>
           </div>
 
@@ -438,7 +501,7 @@ export default function ProductWizard({
               {review.map((r, i) => (
                 <div key={i} className="a-list-row">
                   <span style={{ color: "var(--a-text)", fontWeight: 550 }}>
-                    {r.platform ? labelFor(PLATFORMS, r.platform) : "Option"}
+                    {r.axisLabel ? axisDisplayLabel(r.axisLabel) : "Option"}
                   </span>
                   <span className="a-sub">
                     {r.price ? `${r.price} ${r.currency}` : "no price"} · {labelFor(SALE_MODES, r.saleMode)}

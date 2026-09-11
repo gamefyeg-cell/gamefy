@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCart } from "@/lib/cart";
 import { prisma } from "@/lib/prisma";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, roundMoney } from "@/lib/format";
 import { parseStringArray } from "@/lib/json";
 import { removeFromCartAction } from "@/lib/actions/site";
 import { getActiveDiscounts, buildCollectionIdsMap, pickBestDiscount } from "@/lib/discounts";
@@ -55,14 +55,18 @@ export default async function CartPage() {
       collectionIds: collectionIdsMap.get(variant!.productId) ?? [],
       price: variant!.price,
     });
-    const unit = Math.max(0, variant!.price - (match?.amount ?? 0));
-    subtotal += variant!.price * line.qty;
-    savings += (match?.amount ?? 0) * line.qty;
+    const unit = roundMoney(Math.max(0, variant!.price - (match?.amount ?? 0)));
+    const lineListTotal = roundMoney(variant!.price * line.qty);
+    const lineTotal = roundMoney(unit * line.qty);
+    subtotal += lineListTotal;
+    savings += roundMoney(lineListTotal - lineTotal);
     const cover = variant!.product.coverUrl || parseStringArray(variant!.product.images)[0];
-    return { line, variant: variant!, match, unit, cover };
+    return { line, variant: variant!, match, unit, lineTotal, lineListTotal, cover };
   });
 
-  const total = subtotal - savings;
+  // Total is the sum of the exact per-line prices shown below, so the
+  // summary can never be a cent off from what the buyer added up.
+  const total = roundMoney(subtotal - savings);
   const currency = rows[0]?.variant.currency ?? "USD";
 
   return (
@@ -76,7 +80,7 @@ export default async function CartPage() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <Reveal className="lg:col-span-2 flex flex-col gap-3">
-          {rows.map(({ line, variant, match, unit, cover }) => (
+          {rows.map(({ line, variant, match, lineTotal, lineListTotal, cover }) => (
             <div key={line.variantId} className="card flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4 p-3 sm:p-4">
               <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-surface2 border border-border shrink-0">
                 {cover ? (
@@ -116,10 +120,10 @@ export default async function CartPage() {
                 <CartQtyInput variantId={line.variantId} qty={line.qty} />
 
                 <div className="w-16 sm:w-24 text-right text-sm shrink-0">
-                  <div className="text-slate-200">{formatMoney(unit * line.qty, variant.currency)}</div>
+                  <div className="text-slate-200">{formatMoney(lineTotal, variant.currency)}</div>
                   {match && (
                     <div className="text-xs text-slate-500 line-through">
-                      {formatMoney(variant.price * line.qty, variant.currency)}
+                      {formatMoney(lineListTotal, variant.currency)}
                     </div>
                   )}
                 </div>

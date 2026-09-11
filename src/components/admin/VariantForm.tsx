@@ -88,6 +88,7 @@ export default function VariantForm({
 
   const isGame = productType === "GAME";
   const isSub = productType === "SUBSCRIPTION";
+  const isGiftcard = productType === "GIFTCARD";
   const accountFields = saleMode === "FULL_ACCOUNT" || saleMode === "SHARED_ACCOUNT";
   const durationValue = durationPreset === "__custom__" ? durationCustom : durationPreset;
 
@@ -120,16 +121,22 @@ export default function VariantForm({
               placeholder="e.g. fifa-25-pc"
             />
           </Field>
-          <Field label="Platform" hint="Set it when the product is sold for more than one platform.">
-            <select name="platform" className="a-select" defaultValue={defaults.platform ?? ""}>
-              <option value="">— Not set —</option>
-              {PLATFORMS.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {isGiftcard ? (
+            <Field label="Value" tip='The denomination this option is for, e.g. "50" or "$50" — however you want it shown.'>
+              <input name="edition" className="a-input" defaultValue={defaults.edition ?? ""} placeholder="50" />
+            </Field>
+          ) : (
+            <Field label="Platform" hint="Set it when the product is sold for more than one platform.">
+              <select name="platform" className="a-select" defaultValue={defaults.platform ?? ""}>
+                <option value="">— Not set —</option>
+                {PLATFORMS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
 
           <Field label="Price" required>
             <input name="price" type="number" step="0.01" min="0" required className="a-input" defaultValue={defaults.price ?? ""} />
@@ -201,7 +208,7 @@ export default function VariantForm({
             </details>
           )}
           {mode === "create" && <input type="hidden" name="cost" value="" />}
-          {!isGame && !isSub && <input type="hidden" name="edition" value={defaults.edition ?? ""} />}
+          {!isGame && !isSub && !isGiftcard && <input type="hidden" name="edition" value={defaults.edition ?? ""} />}
         </div>
 
         {/* -------- Delivery & stock -------- */}

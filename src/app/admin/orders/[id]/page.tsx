@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { formatMoney, formatDate } from "@/lib/format";
+import { formatMoney, formatDate, roundMoney } from "@/lib/format";
 import { labelFor, ORDER_STATUSES, SALE_MODES, DELIVERY_METHODS, PAYMENT_METHOD_TYPES } from "@/lib/enums";
 import { readCustomFieldValues } from "@/lib/json";
 import { manualFulfillAction, refundOrderAction, cancelOrderAction, verifyPaymentAction } from "@/lib/actions/admin/orders";
@@ -102,11 +102,11 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                 </div>
                 <div className="text-right">
                   <div className="text-slate-200">
-                    {formatMoney(item.unitPrice * item.quantity - item.discountAmount, order.currency)}
+                    {formatMoney(roundMoney(item.unitPrice * item.quantity - item.discountAmount), order.currency)}
                   </div>
                   {item.discountAmount > 0 && (
                     <div className="text-xs text-slate-500 line-through">
-                      {formatMoney(item.unitPrice * item.quantity, order.currency)}
+                      {formatMoney(roundMoney(item.unitPrice * item.quantity), order.currency)}
                     </div>
                   )}
                 </div>

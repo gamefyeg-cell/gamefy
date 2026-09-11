@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { parseStringArray } from "@/lib/json";
 import { getActiveDiscounts, buildCollectionIdsMap, pickBestDiscount } from "@/lib/discounts";
+import { roundMoney } from "@/lib/format";
 import CheckoutForm from "@/components/storefront/CheckoutForm";
 
 export default async function CheckoutPage({
@@ -67,7 +68,9 @@ export default async function CheckoutPage({
     })
     .filter((l): l is NonNullable<typeof l> => l !== null);
 
-  const total = lines.reduce((sum, l) => sum + Math.max(0, l.price - l.discountAmount) * l.qty, 0);
+  const total = roundMoney(
+    lines.reduce((sum, l) => sum + roundMoney(roundMoney(Math.max(0, l.price - l.discountAmount)) * l.qty), 0)
+  );
   const currency = lines[0]?.currency ?? "USD";
 
   const needsAck = variants.some((v) => v.product.requiresNoticeAck);

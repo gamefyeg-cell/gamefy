@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useActionState } from "react";
 import { placeOrderAction, type CheckoutState } from "@/lib/actions/checkout";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, roundMoney } from "@/lib/format";
 import { PAYMENT_METHOD_TYPES } from "@/lib/enums";
 import { TRUST_SIGNALS } from "@/lib/trust-signals";
 import PaymentProofUploader from "@/components/storefront/PaymentProofUploader";
@@ -228,7 +228,7 @@ export default function CheckoutForm({
 
           <div className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1">
             {lines.map((l) => {
-              const unitNet = Math.max(0, l.price - l.discountAmount);
+              const lineNet = roundMoney(roundMoney(Math.max(0, l.price - l.discountAmount)) * l.qty);
               return (
                 <div key={l.variantId} className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-lg overflow-hidden bg-surface2 border border-border shrink-0">
@@ -247,7 +247,7 @@ export default function CheckoutForm({
                       {l.variantLabel} × {l.qty}
                     </div>
                   </div>
-                  <div className="text-xs text-slate-300 text-right shrink-0">{formatMoney(unitNet * l.qty, l.currency)}</div>
+                  <div className="text-xs text-slate-300 text-right shrink-0">{formatMoney(lineNet, l.currency)}</div>
                 </div>
               );
             })}

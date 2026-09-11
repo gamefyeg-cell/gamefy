@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { roundMoney } from "@/lib/format";
 
 export interface ActiveDiscount {
   id: string;
@@ -31,8 +32,10 @@ export async function getActiveDiscounts(): Promise<ActiveDiscount[]> {
 }
 
 function amountFor(discount: ActiveDiscount, price: number): number {
-  if (discount.type === "PERCENT") return (price * discount.value) / 100;
-  return Math.min(discount.value, price); // FLAT — never discount below 0
+  // Rounded to whole cents at the source so a percent discount can never
+  // introduce a fractional-cent amount downstream (cart, checkout, order).
+  if (discount.type === "PERCENT") return roundMoney((price * discount.value) / 100);
+  return roundMoney(Math.min(discount.value, price)); // FLAT — never discount below 0
 }
 
 /// Picks the single best-matching discount for one line (no stacking —

@@ -6,6 +6,7 @@ import { getCart, clearCart } from "@/lib/cart";
 import { getSession } from "@/lib/session";
 import { getSelectedRegion } from "@/lib/region";
 import { toJson } from "@/lib/json";
+import { roundMoney } from "@/lib/format";
 import { getActiveDiscounts, buildCollectionIdsMap, pickBestDiscount } from "@/lib/discounts";
 import { BLOCKED_MESSAGE, countRecentEvents, getRequestIp, isIpBlocked, logCustomerEvent } from "@/lib/moderation";
 
@@ -133,13 +134,15 @@ export async function placeOrderAction(_prev: CheckoutState, formData: FormData)
     lineDiscounts.set(line.variantId, match ? { amount: match.amount, name: match.discount.name } : null);
   }
 
-  const total = cart.reduce((sum, line) => {
-    const variant = variants.find((v) => v.id === line.variantId);
-    if (!variant) return sum;
-    const discount = lineDiscounts.get(line.variantId);
-    const unit = Math.max(0, variant.price - (discount?.amount ?? 0));
-    return sum + unit * line.qty;
-  }, 0);
+  const total = roundMoney(
+    cart.reduce((sum, line) => {
+      const variant = variants.find((v) => v.id === line.variantId);
+      if (!variant) return sum;
+      const discount = lineDiscounts.get(line.variantId);
+      const unit = roundMoney(Math.max(0, variant.price - (discount?.amount ?? 0)));
+      return sum + roundMoney(unit * line.qty);
+    }, 0)
+  );
 
   const user = session ? await prisma.user.findUnique({ where: { id: session.userId } }) : await getOrCreateGuestUser(email);
   if (!user) return { error: "Could not resolve account." };
@@ -184,8 +187,8 @@ export async function placeOrderAction(_prev: CheckoutState, formData: FormData)
           orderId: created.id,
           variantId: variant.id,
           quantity: line.qty,
-          unitPrice: variant.price,
-          discountAmount: (discount?.amount ?? 0) * line.qty,
+          unitPrice: roundMoney(variant.price),
+          discountAmount: roundMoney((discount?.amount ?? 0) * line.qty),
           discountName: discount?.name ?? null,
           customFieldValues: line.customFieldValues ? toJson(line.customFieldValues) : null,
         },

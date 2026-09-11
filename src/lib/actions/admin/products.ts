@@ -217,7 +217,12 @@ export async function createProductWizardAction(formData: FormData) {
         if (priceRaw === "") continue; // nothing entered for this option — skip it
 
         const platform = g("platform") || null;
-        const suffix = platform ? slugify(platform) : count > 1 ? `opt${i + 1}` : "default";
+        const editionVal = g("edition") || null;
+        // Gift cards carry their denomination in `edition` (e.g. "50") with
+        // no platform — fall back to it for a readable SKU ("…-50") instead
+        // of the generic "opt1".
+        const axisForSku = platform || editionVal;
+        const suffix = axisForSku ? slugify(axisForSku) : count > 1 ? `opt${i + 1}` : "default";
         let sku = `${data.slug}-${suffix}`;
         if (await tx.productVariant.findUnique({ where: { sku } })) {
           sku = `${data.slug}-${suffix}-${Math.random().toString(36).slice(2, 7)}`;
@@ -234,7 +239,7 @@ export async function createProductWizardAction(formData: FormData) {
             currency: g("currency") || "EGP",
             saleMode: g("saleMode") || "KEY",
             deliveryMethod: g("deliveryMethod") || "AUTO_KEY",
-            edition: g("edition") || null,
+            edition: editionVal,
             durationLabel: g("durationLabel") || null,
             stockMode: g("stockMode") || "MANUAL",
             stockQty: stockQty ? Number(stockQty) : null,
