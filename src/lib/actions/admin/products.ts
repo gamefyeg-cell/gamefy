@@ -148,42 +148,45 @@ export async function createProductAction(formData: FormData) {
   const selectedPlatforms = formData.getAll("platforms").map(String).filter(Boolean);
   const variantPlatforms: (string | null)[] = selectedPlatforms.length ? selectedPlatforms : [null];
 
-  const created = await prisma.$transaction(async (tx) => {
-    const product = await tx.product.create({ data });
+  // Deliberately NOT wrapped in prisma.$transaction() — Supabase's
+  // connection here is the transaction-mode pgbouncer pooler, which doesn't
+  // reliably hold an interactive transaction open across this many
+  // sequential round-trips (each findUnique + create pair, times up to
+  // several platforms) and was surfacing as a random P2028 "Transaction
+  // not found" crash. Plain sequential writes cost us nothing real here —
+  // worst case on a mid-loop failure is a product with fewer variants than
+  // intended, which is trivially fixable from the product page afterward,
+  // unlike a silently-lost transaction.
+  const product = await prisma.product.create({ data });
 
-    if (wantsQuickVariant) {
-      const stockQtyRaw = String(formData.get("stockQty") ?? "");
-      const warrantyRaw = String(formData.get("warrantyDays") ?? "");
-      const base = {
-        price: Number(priceRaw) || 0,
-        currency: String(formData.get("currency") ?? "EGP"),
-        durationLabel: String(formData.get("durationLabel") ?? "").trim() || null,
-        edition: String(formData.get("edition") ?? "").trim() || null,
-        saleMode: String(formData.get("saleMode") ?? "KEY"),
-        deliveryMethod: String(formData.get("deliveryMethod") ?? "AUTO_KEY"),
-        stockMode: String(formData.get("stockMode") ?? "MANUAL"),
-        stockQty: stockQtyRaw ? Number(stockQtyRaw) : null,
-        outOfStockMessage: String(formData.get("outOfStockMessage") ?? "") || null,
-        warrantyDays: warrantyRaw ? Number(warrantyRaw) : null,
-        activationRegionId: String(formData.get("activationRegionId") ?? "") || null,
-        active: true,
-      };
+  if (wantsQuickVariant) {
+    const stockQtyRaw = String(formData.get("stockQty") ?? "");
+    const warrantyRaw = String(formData.get("warrantyDays") ?? "");
+    const base = {
+      price: Number(priceRaw) || 0,
+      currency: String(formData.get("currency") ?? "EGP"),
+      durationLabel: String(formData.get("durationLabel") ?? "").trim() || null,
+      edition: String(formData.get("edition") ?? "").trim() || null,
+      saleMode: String(formData.get("saleMode") ?? "KEY"),
+      deliveryMethod: String(formData.get("deliveryMethod") ?? "AUTO_KEY"),
+      stockMode: String(formData.get("stockMode") ?? "MANUAL"),
+      stockQty: stockQtyRaw ? Number(stockQtyRaw) : null,
+      outOfStockMessage: String(formData.get("outOfStockMessage") ?? "") || null,
+      warrantyDays: warrantyRaw ? Number(warrantyRaw) : null,
+      activationRegionId: String(formData.get("activationRegionId") ?? "") || null,
+      active: true,
+    };
 
-      for (const platform of variantPlatforms) {
-        const suffix = platform ? slugify(platform) : "default";
-        let sku = `${data.slug}-${suffix}`;
-        // SKUs are unique — fall back to a short random suffix on collision.
-        if (await tx.productVariant.findUnique({ where: { sku } })) {
-          sku = `${data.slug}-${suffix}-${Math.random().toString(36).slice(2, 7)}`;
-        }
-        await tx.productVariant.create({
-          data: { productId: product.id, sku, platform: platform ?? null, ...base },
-        });
-      }
+    for (const platform of variantPlatforms) {
+      const suffix = platform ? slugify(platform) : "default";
+      const sku = await uniqueSku(`${data.slug}-${suffix}`);
+      await prisma.productVariant.create({
+        data: { productId: product.id, sku, platform: platform ?? null, ...base },
+      });
     }
+  }
 
-    return product;
-  });
+  const created = product;
 
   await logAudit(session.userId, "product.create", `Product:${created.id}`, null, {
     ...created,
@@ -207,58 +210,58 @@ export async function createProductWizardAction(formData: FormData) {
   const skipPricing = formData.get("skipPricing") === "on";
   const count = Math.max(0, Math.min(20, Number(formData.get("variantCount") ?? 0)));
 
-  const created = await prisma.$transaction(async (tx) => {
-    const product = await tx.product.create({ data });
+  // Not wrapped in prisma.$transaction() — see the comment on the same
+  // choice in createProductAction above. With up to 20 variants each doing
+  // a findUnique + create round-trip, an interactive transaction here was
+  // the most likely source of the P2028 "Transaction not found" crash
+  // against Supabase's transaction-mode pooler.
+  const product = await prisma.product.create({ data });
 
-    if (!skipPricing) {
-      for (let i = 0; i < count; i++) {
-        const g = (k: string) => String(formData.get(`v${i}_${k}`) ?? "").trim();
-        const priceRaw = g("price");
-        if (priceRaw === "") continue; // nothing entered for this option — skip it
+  if (!skipPricing) {
+    for (let i = 0; i < count; i++) {
+      const g = (k: string) => String(formData.get(`v${i}_${k}`) ?? "").trim();
+      const priceRaw = g("price");
+      if (priceRaw === "") continue; // nothing entered for this option — skip it
 
-        const platform = g("platform") || null;
-        const editionVal = g("edition") || null;
-        // Gift cards carry their denomination in `edition` (e.g. "50") with
-        // no platform — fall back to it for a readable SKU ("…-50") instead
-        // of the generic "opt1".
-        const axisForSku = platform || editionVal;
-        const suffix = axisForSku ? slugify(axisForSku) : count > 1 ? `opt${i + 1}` : "default";
-        let sku = `${data.slug}-${suffix}`;
-        if (await tx.productVariant.findUnique({ where: { sku } })) {
-          sku = `${data.slug}-${suffix}-${Math.random().toString(36).slice(2, 7)}`;
-        }
+      const platform = g("platform") || null;
+      const editionVal = g("edition") || null;
+      // Gift cards carry their denomination in `edition` (e.g. "50") with
+      // no platform — fall back to it for a readable SKU ("…-50") instead
+      // of the generic "opt1".
+      const axisForSku = platform || editionVal;
+      const suffix = axisForSku ? slugify(axisForSku) : count > 1 ? `opt${i + 1}` : "default";
+      const sku = await uniqueSku(`${data.slug}-${suffix}`);
 
-        const warranty = g("warrantyDays");
-        const stockQty = g("stockQty");
-        await tx.productVariant.create({
-          data: {
-            productId: product.id,
-            sku,
-            platform,
-            price: Number(priceRaw) || 0,
-            currency: g("currency") || "EGP",
-            saleMode: g("saleMode") || "KEY",
-            deliveryMethod: g("deliveryMethod") || "AUTO_KEY",
-            edition: editionVal,
-            durationLabel: g("durationLabel") || null,
-            stockMode: g("stockMode") || "MANUAL",
-            stockQty: stockQty ? Number(stockQty) : null,
-            outOfStockMessage: g("outOfStockMessage") || null,
-            activationRegionId: g("activationRegionId") || null,
-            regionLockType: g("regionLockType") || "NONE",
-            warrantyDays: warranty ? Number(warranty) : null,
-            accountAccessLevel: g("accountAccessLevel") || null,
-            activationInstructions: g("activationInstructions") || null,
-            redemptionInstructions: g("redemptionInstructions") || null,
-            accountDeliveryNote: g("accountDeliveryNote") || null,
-            active: true,
-          },
-        });
-      }
+      const warranty = g("warrantyDays");
+      const stockQty = g("stockQty");
+      await prisma.productVariant.create({
+        data: {
+          productId: product.id,
+          sku,
+          platform,
+          price: Number(priceRaw) || 0,
+          currency: g("currency") || "EGP",
+          saleMode: g("saleMode") || "KEY",
+          deliveryMethod: g("deliveryMethod") || "AUTO_KEY",
+          edition: editionVal,
+          durationLabel: g("durationLabel") || null,
+          stockMode: g("stockMode") || "MANUAL",
+          stockQty: stockQty ? Number(stockQty) : null,
+          outOfStockMessage: g("outOfStockMessage") || null,
+          activationRegionId: g("activationRegionId") || null,
+          regionLockType: g("regionLockType") || "NONE",
+          warrantyDays: warranty ? Number(warranty) : null,
+          accountAccessLevel: g("accountAccessLevel") || null,
+          activationInstructions: g("activationInstructions") || null,
+          redemptionInstructions: g("redemptionInstructions") || null,
+          accountDeliveryNote: g("accountDeliveryNote") || null,
+          active: true,
+        },
+      });
     }
+  }
 
-    return product;
-  });
+  const created = product;
 
   await logAudit(session.userId, "product.create", `Product:${created.id}`, null, {
     ...created,
