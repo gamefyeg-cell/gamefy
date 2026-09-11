@@ -330,10 +330,22 @@ function variantFieldsFrom(formData: FormData) {
   };
 }
 
+/// SKU is admin-typed on the single "Add/Edit option" forms (unlike the
+/// wizard, which generates one per platform/value/plan) — nothing stops two
+/// options ending up with the same text, and the DB's unique constraint
+/// used to surface as a raw, unhandled Prisma crash. Silently disambiguate
+/// instead, same as the wizard already does on collision.
+async function uniqueSku(candidate: string, excludeId?: string): Promise<string> {
+  const existing = await prisma.productVariant.findUnique({ where: { sku: candidate } });
+  if (!existing || existing.id === excludeId) return candidate;
+  return `${candidate}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 export async function createVariantAction(formData: FormData) {
   const session = await requireAdmin(["SUPER_ADMIN", "PRODUCT_MANAGER"]);
   const data = variantFieldsFrom(formData);
   if (!data.productId || !data.sku) throw new Error("Product and SKU are required.");
+  data.sku = await uniqueSku(data.sku);
 
   const created = await prisma.productVariant.create({ data });
   await logAudit(session.userId, "variant.create", `ProductVariant:${created.id}`, null, created);
@@ -350,6 +362,7 @@ export async function updateVariantAction(formData: FormData) {
 
   const before = await prisma.productVariant.findUnique({ where: { id } });
   const data = variantFieldsFrom(formData);
+  data.sku = await uniqueSku(data.sku, id);
   const updated = await prisma.productVariant.update({ where: { id }, data });
   await logAudit(session.userId, "variant.update", `ProductVariant:${id}`, before, updated);
 
