@@ -122,8 +122,11 @@ export default function VariantForm({
             />
           </Field>
           {isGiftcard ? (
-            <Field label="Value" tip='The denomination this option is for, e.g. "50" or "$50" — however you want it shown.'>
-              <input name="edition" className="a-input" defaultValue={defaults.edition ?? ""} placeholder="50" />
+            <Field
+              label="Value"
+              tip='The denomination this option is for. If the card&apos;s balance is in a different currency than the price you charge, add it after the number — e.g. "30 CNY" for a China card you sell in EGP. Otherwise just "50".'
+            >
+              <input name="edition" className="a-input" defaultValue={defaults.edition ?? ""} placeholder="30 CNY" />
             </Field>
           ) : isSub ? (
             <Field

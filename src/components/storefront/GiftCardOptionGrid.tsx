@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatMoney } from "@/lib/format";
 import { regionIcon } from "@/lib/region-display";
+import { parseGiftCardValue } from "@/lib/giftcard-value";
 import { springs, tapFeedback } from "@/lib/motion";
 
 interface GiftCardVariant {
@@ -114,6 +115,7 @@ export default function GiftCardOptionGrid({
             const selected = v.id === value;
             const outOfStock = v.stockMode === "MANUAL" && (v.stockQty ?? 0) <= 0;
             const net = v.price - (v.discount?.amount ?? 0);
+            const face = parseGiftCardValue(v.edition ?? "");
             return (
               <motion.button
                 key={v.id}
@@ -154,8 +156,14 @@ export default function GiftCardOptionGrid({
                   </span>
                 )}
 
-                <span className="relative font-heading text-2xl font-bold leading-none text-white">{v.edition ?? "—"}</span>
-                <span className="relative text-[10px] uppercase tracking-wide text-slate-500">{v.currency} value</span>
+                <span className="relative font-heading text-2xl font-bold leading-none text-white">{face.amount || "—"}</span>
+                {/* The face currency (if the admin specified one) — never
+                    `v.currency`, which is what the buyer *pays* in, not what
+                    the card's balance is denominated in. See
+                    src/lib/giftcard-value.ts for why these two differ. */}
+                <span className="relative text-[10px] uppercase tracking-wide text-slate-500">
+                  {face.currency ? `${face.currency} value` : "card value"}
+                </span>
                 <span className="relative mt-1.5 text-sm font-bold text-gold">{formatMoney(net, v.currency)}</span>
                 {v.discount && (
                   <span className="relative text-[10px] text-slate-500 line-through">{formatMoney(v.price, v.currency)}</span>

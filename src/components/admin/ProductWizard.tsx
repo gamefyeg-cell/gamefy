@@ -260,13 +260,13 @@ export default function ProductWizard({
                 <Field
                   label="Values"
                   full
-                  hint='Comma-separated, in whatever way you want them labeled — e.g. "10, 25, 50, 100" or "100 EGP, 200 EGP".'
+                  hint='Comma-separated. If the card&apos;s balance is in a different currency than what you charge, add it after the number — e.g. "30 CNY, 50 CNY, 60 CNY" for a China Steam card you sell in EGP. Otherwise just "10, 25, 50, 100".'
                 >
                   <input
                     className="a-input"
                     value={axisTextRaw}
                     onChange={(e) => setAxisTextRaw(e.target.value)}
-                    placeholder="10, 25, 50, 100"
+                    placeholder="30 CNY, 50 CNY, 60 CNY"
                   />
                 </Field>
                 <p className="a-span-2 a-hint">
@@ -337,7 +337,16 @@ export default function ProductWizard({
             return (
               <div key={i} data-stepkey={`v${i}`} hidden={currentKey !== `v${i}`} className="a-step-panel">
                 <StepHead title={pk ? `Price — ${axisDisplayLabel(pk)}` : "Price & availability"}>
-                  Just the essentials. Everything else has a sensible default under <em>More options</em>.
+                  {isGiftcard ? (
+                    <>
+                      What <em>you charge</em> for this one — separate from the card's own balance/currency you set on
+                      the last step.
+                    </>
+                  ) : (
+                    <>
+                      Just the essentials. Everything else has a sensible default under <em>More options</em>.
+                    </>
+                  )}
                 </StepHead>
                 {isGiftcard || isSub ? (
                   <input type="hidden" name={`v${i}_edition`} value={pk} />
