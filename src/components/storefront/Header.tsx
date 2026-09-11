@@ -5,6 +5,7 @@ import { getCart } from "@/lib/cart";
 import { logoutAction } from "@/lib/actions/auth";
 import HeaderShrinkWrapper from "@/components/storefront/HeaderShrinkWrapper";
 import MobileNav from "@/components/storefront/MobileNav";
+import SearchBar from "@/components/storefront/SearchBar";
 
 export default async function Header() {
   const [categories, session, cart] = await Promise.all([
@@ -52,6 +53,8 @@ export default async function Header() {
             </nav>
 
             <div className="flex flex-1 items-center justify-end gap-1.5 sm:gap-2">
+              <SearchBar />
+
               <MobileNav categories={categories} email={session?.email} />
 
               <Link
