@@ -8,6 +8,7 @@ import { formatMoney } from "@/lib/format";
 import { labelFor, REGION_LOCK_TYPES, ACCOUNT_ACCESS_LEVELS, PLATFORMS } from "@/lib/enums";
 import { addToCartAction } from "@/lib/actions/site";
 import { springs, tapFeedback } from "@/lib/motion";
+import { regionIcon } from "@/lib/region-display";
 
 interface Variant {
   id: string;
@@ -70,20 +71,31 @@ function deliveryLine(v: Variant): { icon: string; text: string } {
   return { icon: "👤", text: "Delivered by our team right after verification" };
 }
 
-function regionIcon(kind?: string) {
-  return kind === "GLOBAL" ? "🌍" : kind === "ZONE" ? "🗺️" : "📍";
-}
-
 export default function ProductBuyBox({
   variants,
   customFields,
+  variantId: controlledVariantId,
+  onVariantChange,
+  hideOptionPicker,
 }: {
   variants: Variant[];
   customFields: CustomField[];
+  /// When a parent owns the selection instead (e.g. ProductPurchaseLayout's
+  /// gift-card region/value grid sitting elsewhere on the page), pass both
+  /// of these and this component just reflects the choice instead of
+  /// tracking its own.
+  variantId?: string;
+  onVariantChange?: (id: string) => void;
+  /// Hide the internal "Choose your version" list — used when the picker
+  /// lives elsewhere on the page (the gift-card denomination grid) so the
+  /// same options don't render twice.
+  hideOptionPicker?: boolean;
 }) {
   const router = useRouter();
   const usable = useMemo(() => variants.filter((v) => v.active), [variants]);
-  const [variantId, setVariantId] = useState(usable[0]?.id ?? "");
+  const [internalVariantId, setInternalVariantId] = useState(usable[0]?.id ?? "");
+  const variantId = controlledVariantId ?? internalVariantId;
+  const setVariantId = onVariantChange ?? setInternalVariantId;
   const [qty, setQty] = useState(1);
   const [pending, setPending] = useState(false);
   const [added, setAdded] = useState(false);
@@ -154,7 +166,7 @@ export default function ProductBuyBox({
 
       <div className="flex flex-col gap-5 p-5 sm:p-6">
         {/* Option picker */}
-        {usable.length > 1 && (
+        {!hideOptionPicker && usable.length > 1 && (
           <div className="flex flex-col gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Choose your version</span>
             <div className="flex flex-col gap-2">

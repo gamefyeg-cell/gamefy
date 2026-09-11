@@ -8,7 +8,7 @@ import { labelFor, PRODUCT_TYPES, PLATFORMS } from "@/lib/enums";
 import { renderLiteMarkdown } from "@/lib/richtext";
 import { getActiveDiscounts, pickBestDiscount, pickBestDiscountForCard, buildCollectionIdsMap } from "@/lib/discounts";
 import { trackProductEvent } from "@/lib/analytics";
-import ProductBuyBox from "@/components/storefront/ProductBuyBox";
+import ProductPurchaseLayout from "@/components/storefront/ProductPurchaseLayout";
 import ProductGallery from "@/components/storefront/ProductGallery";
 import ProductCard from "@/components/storefront/ProductCard";
 import HowItWorks from "@/components/storefront/HowItWorks";
@@ -139,13 +139,17 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
         </div>
 
-        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="flex min-w-0 flex-col gap-6">
+        <ProductPurchaseLayout
+          productType={product.type}
+          variants={variantsWithDiscount}
+          customFields={product.customFields}
+          gallery={
             <Reveal>
               <ProductGallery images={images} videoId={product.videoUrl} title={product.title} />
             </Reveal>
-
-            {product.description && (
+          }
+          description={
+            product.description && (
               <Reveal>
                 <section className="flex flex-col gap-3">
                   <h2 className="font-heading text-lg font-semibold text-white">About this {typeWord}</h2>
@@ -154,15 +158,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                   </div>
                 </section>
               </Reveal>
-            )}
-          </div>
-
-          <div>
-            <Reveal delay={0.1} className="lg:sticky lg:top-24">
-              <ProductBuyBox variants={variantsWithDiscount} customFields={product.customFields} />
-            </Reveal>
-          </div>
-        </div>
+            )
+          }
+        />
 
         {/* Long-form sections — full width so they don't crowd a column */}
         <Reveal>
