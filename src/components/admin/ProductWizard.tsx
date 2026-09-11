@@ -61,24 +61,28 @@ export default function ProductWizard({
 
   const [type, setType] = useState("GAME");
   const [platforms, setPlatforms] = useState<string[]>([]);
-  const [giftcardValuesRaw, setGiftcardValuesRaw] = useState("");
+  // Free-text axis values — gift card face values ("10, 25, 50") or
+  // subscription plan tiers ("Basic, Standard, Premium"); never both at
+  // once, so one field covers either.
+  const [axisTextRaw, setAxisTextRaw] = useState("");
   const [addPricing, setAddPricing] = useState(true);
   const [vui, setVui] = useState<VUI[]>([makeVUI("GAME")]);
 
   const isGiftcard = type === "GIFTCARD";
-  const showAxisStep = type === "GAME" || type === "ACCOUNT" || isGiftcard;
-  const giftcardValues = useMemo(
+  const isSub = type === "SUBSCRIPTION";
+  const showAxisStep = type === "GAME" || type === "ACCOUNT" || isGiftcard || isSub;
+  const axisTextValues = useMemo(
     () =>
-      giftcardValuesRaw
+      axisTextRaw
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean),
-    [giftcardValuesRaw]
+    [axisTextRaw]
   );
   // The "axis" is whatever this product has more than one of — platform
-  // for games/accounts, face value for gift cards. Each axis value gets
-  // its own price/region/stock step.
-  const axisValues = isGiftcard ? giftcardValues : platforms;
+  // for games/accounts, face value for gift cards, plan tier for
+  // subscriptions. Each axis value gets its own price/region/stock step.
+  const axisValues = isGiftcard || isSub ? axisTextValues : platforms;
   const variantKeys = useMemo(() => (axisValues.length ? axisValues : [""]), [axisValues]);
 
   const stepKeys = useMemo(() => {
@@ -123,28 +127,27 @@ export default function ProductWizard({
     setType(nextType);
     setVui((prev) => prev.map(() => makeVUI(nextType)));
     if (nextType !== "GAME" && nextType !== "ACCOUNT") setPlatforms([]);
-    if (nextType !== "GIFTCARD") setGiftcardValuesRaw("");
+    if (nextType !== "GIFTCARD" && nextType !== "SUBSCRIPTION") setAxisTextRaw("");
   }
   function togglePlatform(value: string, on: boolean) {
     setPlatforms((prev) => (on ? [...prev, value] : prev.filter((p) => p !== value)));
   }
 
   function axisDisplayLabel(pk: string) {
-    return isGiftcard ? pk : labelFor(PLATFORMS, pk);
+    return isGiftcard || isSub ? pk : labelFor(PLATFORMS, pk);
   }
 
   function stepLabel(key: string) {
     if (key === "basics") return "Name";
     if (key === "media") return "Images";
     if (key === "description") return "Description";
-    if (key === "axis") return isGiftcard ? "Values" : "Platforms";
+    if (key === "axis") return isGiftcard ? "Values" : isSub ? "Plans" : "Platforms";
     if (key === "review") return "Review";
     const i = Number(key.slice(1));
     const pk = variantKeys[i];
     return pk ? axisDisplayLabel(pk) : "Price";
   }
 
-  const isSub = type === "SUBSCRIPTION";
   const isGame = type === "GAME";
 
   return (
@@ -173,7 +176,7 @@ export default function ProductWizard({
               ))}
             </select>
           </Field>
-          <Field label="Type" tip="Changes what you're asked next — subscriptions get a plan picker, games/accounts get a step per platform, gift cards get a step per value.">
+          <Field label="Type" tip="Changes what you're asked next — subscriptions get a step per plan (Netflix Basic/Standard/Premium, PS Plus Essential/Extra/Deluxe…), games/accounts get a step per platform, gift cards get a step per value.">
             <select name="type" className="a-select" value={type} onChange={(e) => onTypeChange(e.target.value)}>
               {PRODUCT_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -261,15 +264,39 @@ export default function ProductWizard({
                 >
                   <input
                     className="a-input"
-                    value={giftcardValuesRaw}
-                    onChange={(e) => setGiftcardValuesRaw(e.target.value)}
+                    value={axisTextRaw}
+                    onChange={(e) => setAxisTextRaw(e.target.value)}
                     placeholder="10, 25, 50, 100"
                   />
                 </Field>
                 <p className="a-span-2 a-hint">
-                  {giftcardValues.length === 0
+                  {axisTextValues.length === 0
                     ? "→ one price step"
-                    : `→ ${giftcardValues.length} step${giftcardValues.length === 1 ? "" : "s"}: ${giftcardValues.join(", ")}`}
+                    : `→ ${axisTextValues.length} step${axisTextValues.length === 1 ? "" : "s"}: ${axisTextValues.join(", ")}`}
+                </p>
+              </>
+            ) : isSub ? (
+              <>
+                <StepHead title="Which plans do you sell?">
+                  e.g. Netflix Basic / Standard / Premium, PS Plus Essential / Extra / Deluxe, or Spotify Individual /
+                  Duo / Family — each plan gets its own price, region, duration and stock on the next step.
+                </StepHead>
+                <Field
+                  label="Plans"
+                  full
+                  hint='Comma-separated, however you want them labeled — e.g. "Basic, Standard, Premium" or "Essential, Extra, Deluxe". Leave blank if there is only one plan.'
+                >
+                  <input
+                    className="a-input"
+                    value={axisTextRaw}
+                    onChange={(e) => setAxisTextRaw(e.target.value)}
+                    placeholder="Basic, Standard, Premium"
+                  />
+                </Field>
+                <p className="a-span-2 a-hint">
+                  {axisTextValues.length === 0
+                    ? "→ one price step"
+                    : `→ ${axisTextValues.length} step${axisTextValues.length === 1 ? "" : "s"}: ${axisTextValues.join(", ")}`}
                 </p>
               </>
             ) : (
@@ -312,7 +339,7 @@ export default function ProductWizard({
                 <StepHead title={pk ? `Price — ${axisDisplayLabel(pk)}` : "Price & availability"}>
                   Just the essentials. Everything else has a sensible default under <em>More options</em>.
                 </StepHead>
-                {isGiftcard ? (
+                {isGiftcard || isSub ? (
                   <input type="hidden" name={`v${i}_edition`} value={pk} />
                 ) : (
                   <input type="hidden" name={`v${i}_platform`} value={pk} />
@@ -331,11 +358,15 @@ export default function ProductWizard({
                   </select>
                 </Field>
 
-                {isGiftcard && (
+                {(isGiftcard || isSub) && (
                   <Field
                     label="Region"
                     full
-                    tip="Which store region this code redeems in — e.g. a Steam US wallet code won't work on a Steam UK account."
+                    tip={
+                      isGiftcard
+                        ? "Which store region this code redeems in — e.g. a Steam US wallet code won't work on a Steam UK account."
+                        : "Subscription pricing is often region-locked — e.g. Netflix/Spotify/PS Plus price very differently by country and a plan bought in one region may not activate in another."
+                    }
                   >
                     <ActivationRegionSelect name={`v${i}_activationRegionId`} regions={activationRegions} />
                   </Field>
@@ -385,7 +416,7 @@ export default function ProductWizard({
                 )}
 
                 <details className="a-more">
-                  <summary>More options for this {pk ? (isGiftcard ? "value" : "platform") : "option"}</summary>
+                  <summary>More options for this {pk ? (isGiftcard ? "value" : isSub ? "plan" : "platform") : "option"}</summary>
                   <div className="a-more-body">
                     <Field label="Delivery method" tip="Usually auto-picked from “How it's sold”. Change only if you deliver a different way.">
                       <select
@@ -428,7 +459,7 @@ export default function ProductWizard({
                       </Field>
                     )}
 
-                    {!isGiftcard && (
+                    {!isGiftcard && !isSub && (
                       <Field label="Where it works" full tip="Global, a zone (Europe, MENA…), or one country. Separate from the price currency.">
                         <ActivationRegionSelect name={`v${i}_activationRegionId`} regions={activationRegions} />
                       </Field>
@@ -487,8 +518,12 @@ export default function ProductWizard({
               {labelFor(PRODUCT_TYPES, type)}
             </div>
             <div>
-              <span className="a-sub block">{isGiftcard ? "Values" : "Platforms"}</span>
-              {axisValues.length ? (isGiftcard ? axisValues.join(", ") : axisValues.map((p) => labelFor(PLATFORMS, p)).join(", ")) : "Single option"}
+              <span className="a-sub block">{isGiftcard ? "Values" : isSub ? "Plans" : "Platforms"}</span>
+              {axisValues.length
+                ? isGiftcard || isSub
+                  ? axisValues.join(", ")
+                  : axisValues.map((p) => labelFor(PLATFORMS, p)).join(", ")
+                : "Single option"}
             </div>
           </div>
 

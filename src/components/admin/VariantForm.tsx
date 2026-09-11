@@ -125,6 +125,13 @@ export default function VariantForm({
             <Field label="Value" tip='The denomination this option is for, e.g. "50" or "$50" — however you want it shown.'>
               <input name="edition" className="a-input" defaultValue={defaults.edition ?? ""} placeholder="50" />
             </Field>
+          ) : isSub ? (
+            <Field
+              label="Plan"
+              tip='Which subscription tier this is, e.g. "Basic" / "Standard" / "Premium" (Netflix), "Essential" / "Extra" / "Deluxe" (PS Plus), or "Individual" / "Duo" / "Family" (Spotify). Leave blank if there is only one plan.'
+            >
+              <input name="edition" className="a-input" defaultValue={defaults.edition ?? ""} placeholder="Standard" />
+            </Field>
           ) : (
             <Field label="Platform" hint="Set it when the product is sold for more than one platform.">
               <select name="platform" className="a-select" defaultValue={defaults.platform ?? ""}>

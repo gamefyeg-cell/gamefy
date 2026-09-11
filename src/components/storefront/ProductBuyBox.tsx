@@ -135,16 +135,20 @@ export default function ProductBuyBox({
 
   function primary(v: Variant) {
     if (v.platform) return `${PLATFORM_ICON[v.platform] ?? "🎮"} ${labelFor(PLATFORMS, v.platform)}`;
-    if (v.durationLabel) return `⏳ ${v.durationLabel}`;
-    // Gift cards have no platform/duration — their face value (stored in
-    // `edition`, e.g. "50") is the headline instead.
+    // No platform — gift cards (face value) and subscriptions (plan tier)
+    // both carry their headline in `edition`, and it's more meaningful
+    // than a lone duration ("Standard" beats "⏳ 1 Month" when both exist).
     if (v.edition) return v.edition;
+    if (v.durationLabel) return `⏳ ${v.durationLabel}`;
     return SALE_MODE_SHORT[v.saleMode] ?? v.saleMode;
   }
   function secondary(v: Variant) {
     const bits: (string | null)[] = [];
     if (v.platform && v.durationLabel) bits.push(v.durationLabel);
     if (v.platform && v.edition) bits.push(v.edition);
+    // A plan/value led the headline above — duration still needs to show
+    // somewhere, e.g. "Standard" · "1 Month".
+    if (!v.platform && v.edition && v.durationLabel) bits.push(v.durationLabel);
     // Sale mode is only worth repeating once something else led the label.
     if (v.platform || v.durationLabel || v.edition) bits.push(SALE_MODE_SHORT[v.saleMode] ?? v.saleMode);
     return bits.filter(Boolean).join(" · ");
