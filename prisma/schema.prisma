@@ -160,6 +160,13 @@ model Discount {
   scope   String // PG: enum DiscountScope — "ALL" | "CATEGORY" | "COLLECTION" | "PRODUCT"
   scopeId String? // Category/Collection/Product id — unused when scope = ALL
 
+  /// Optional granular filters when scope = PRODUCT (or general platform/region restrictions)
+  variantId          String?
+  variant            ProductVariant?   @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  platform           String? // e.g. "PC", "PlayStation", "Xbox"
+  activationRegionId String?
+  activationRegion   ActivationRegion? @relation(fields: [activationRegionId], references: [id], onDelete: Cascade)
+
   startsAt DateTime?
   endsAt   DateTime?
   active   Boolean   @default(true)
@@ -168,6 +175,9 @@ model Discount {
   updatedAt DateTime @updatedAt
 
   @@index([scope, scopeId])
+  @@index([variantId])
+  @@index([platform])
+  @@index([activationRegionId])
   @@map("discounts")
 }
 
@@ -231,6 +241,7 @@ model ActivationRegion {
   updatedAt DateTime @updatedAt
 
   variants ProductVariant[]
+  discounts Discount[]
 
   @@index([zoneId])
   @@map("activation_regions")
@@ -393,6 +404,7 @@ model ProductVariant {
   orderItems       OrderItem[]
   providerMappings ProviderMapping[]
   keyStock         KeyStockItem[]
+  discounts        Discount[]
 
   @@index([productId])
   @@index([regionId])

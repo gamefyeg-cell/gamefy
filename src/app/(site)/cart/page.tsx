@@ -54,6 +54,9 @@ export default async function CartPage() {
       categoryId: variant!.product.categoryId,
       collectionIds: collectionIdsMap.get(variant!.productId) ?? [],
       price: variant!.price,
+      variantId: variant!.id,
+      platform: variant!.platform,
+      activationRegionId: variant!.activationRegionId,
     });
     const unit = roundMoney(Math.max(0, variant!.price - (match?.amount ?? 0)));
     const lineListTotal = roundMoney(variant!.price * line.qty);

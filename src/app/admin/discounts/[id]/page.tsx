@@ -13,13 +13,38 @@ function toLocalInput(date: Date | null) {
 
 export default async function EditDiscountPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [discount, categories, collections, products] = await Promise.all([
+  const [discount, categories, collections, products, activationRegions] = await Promise.all([
     prisma.discount.findUnique({ where: { id } }),
     prisma.category.findMany({ orderBy: { name: "asc" } }),
     prisma.collection.findMany({ orderBy: { name: "asc" } }),
-    prisma.product.findMany({ orderBy: { title: "asc" } }),
+    prisma.product.findMany({
+      include: {
+        variants: {
+          include: { activationRegion: true },
+          orderBy: { price: "asc" },
+        },
+      },
+      orderBy: { title: "asc" },
+    }),
+    prisma.activationRegion.findMany({ orderBy: [{ kind: "asc" }, { name: "asc" }] }),
   ]);
   if (!discount) notFound();
+
+  const productData = products.map((p) => ({
+    id: p.id,
+    name: p.title,
+    variants: p.variants.map((v) => ({
+      id: v.id,
+      sku: v.sku,
+      platform: v.platform,
+      edition: v.edition,
+      durationLabel: v.durationLabel,
+      price: v.price,
+      currency: v.currency,
+      activationRegionId: v.activationRegionId,
+      activationRegionName: v.activationRegion?.name ?? null,
+    })),
+  }));
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
@@ -51,9 +76,13 @@ export default async function EditDiscountPage({ params }: { params: Promise<{ i
         <DiscountScopeFields
           categories={categories}
           collections={collections}
-          products={products.map((p) => ({ id: p.id, name: p.title }))}
+          products={productData}
+          activationRegions={activationRegions}
           defaultScope={discount.scope}
           defaultScopeId={discount.scopeId}
+          defaultVariantId={discount.variantId}
+          defaultPlatform={discount.platform}
+          defaultActivationRegionId={discount.activationRegionId}
         />
         <div>
           <label className="label">Starts</label>

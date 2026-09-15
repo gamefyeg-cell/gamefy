@@ -21,7 +21,7 @@ const productSelect = {
   categoryId: true,
   coverUrl: true,
   images: true,
-  variants: { where: { active: true }, select: { price: true, currency: true, platform: true } },
+  variants: { where: { active: true }, select: { id: true, price: true, currency: true, platform: true, activationRegionId: true } },
 };
 
 type GridProduct = {
@@ -32,7 +32,7 @@ type GridProduct = {
   categoryId: string;
   coverUrl: string | null;
   images: string;
-  variants: { price: number; currency: string; platform: string | null }[];
+  variants: { id?: string; price: number; currency: string; platform: string | null; activationRegionId?: string | null }[];
 };
 
 async function ProductGrid({ products, cols = "md:grid-cols-5" }: { products: GridProduct[]; cols?: string }) {

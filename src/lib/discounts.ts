@@ -9,11 +9,25 @@ export interface ActiveDiscount {
   value: number;
   scope: string; // "ALL" | "CATEGORY" | "COLLECTION" | "PRODUCT"
   scopeId: string | null;
+  variantId?: string | null;
+  platform?: string | null;
+  activationRegionId?: string | null;
 }
 
 export interface DiscountMatch {
   discount: ActiveDiscount;
   amount: number; // absolute amount off, in the variant's currency, per unit
+}
+
+export interface DiscountTargetParams {
+  productId: string;
+  categoryId: string;
+  collectionIds: string[];
+  price: number;
+  code?: string | null;
+  variantId?: string | null;
+  platform?: string | null;
+  activationRegionId?: string | null;
 }
 
 /// All discounts currently in their active schedule window — fetch once
@@ -44,7 +58,7 @@ function amountFor(discount: ActiveDiscount, price: number): number {
 /// if the buyer entered that exact code.
 export function pickBestDiscount(
   activeDiscounts: ActiveDiscount[],
-  params: { productId: string; categoryId: string; collectionIds: string[]; price: number; code?: string | null }
+  params: DiscountTargetParams
 ): DiscountMatch | null {
   const enteredCode = params.code?.trim().toUpperCase() || null;
 
@@ -55,6 +69,11 @@ export function pickBestDiscount(
       (d.scope === "COLLECTION" && d.scopeId != null && params.collectionIds.includes(d.scopeId)) ||
       (d.scope === "PRODUCT" && d.scopeId === params.productId);
     if (!scopeMatches) return false;
+
+    // Granular variant/platform/region filters
+    if (d.variantId && params.variantId && d.variantId !== params.variantId) return false;
+    if (d.platform && params.platform && d.platform.toLowerCase() !== params.platform.toLowerCase()) return false;
+    if (d.activationRegionId && params.activationRegionId && d.activationRegionId !== params.activationRegionId) return false;
 
     if (d.code == null) return true; // automatic
     return enteredCode !== null && d.code.toUpperCase() === enteredCode;
@@ -87,41 +106,62 @@ export async function buildCollectionIdsMap(productIds: string[]): Promise<Map<s
   return map;
 }
 
-/// For a ProductCard: picks the discount that applies to the product's
-/// cheapest variant (matching how the card's "from $X" price is computed).
+/// For a ProductCard: picks the best discount that applies to any variant of the product.
 export function pickBestDiscountForCard(
   activeDiscounts: ActiveDiscount[],
-  product: { id: string; categoryId: string; variants: { price: number }[] },
+  product: {
+    id: string;
+    categoryId: string;
+    variants: { id?: string; price: number; platform?: string | null; activationRegionId?: string | null }[];
+  },
   collectionIds: string[]
 ): DiscountMatch | null {
-  if (product.variants.length === 0) return null;
-  const cheapest = product.variants.reduce((min, v) => (v.price < min.price ? v : min));
-  return pickBestDiscount(activeDiscounts, {
-    productId: product.id,
-    categoryId: product.categoryId,
-    collectionIds,
-    price: cheapest.price,
-  });
+  if (!product.variants || product.variants.length === 0) return null;
+  let best: DiscountMatch | null = null;
+  for (const v of product.variants) {
+    const match = pickBestDiscount(activeDiscounts, {
+      productId: product.id,
+      categoryId: product.categoryId,
+      collectionIds,
+      price: v.price,
+      variantId: v.id,
+      platform: v.platform,
+      activationRegionId: v.activationRegionId,
+    });
+    if (match && (!best || match.amount > best.amount)) {
+      best = match;
+    }
+  }
+  return best;
 }
 
 /// Convenience for a single product/variant — fetches its collection ids
 /// and the active discount list itself. Prefer getActiveDiscounts() +
 /// pickBestDiscount() directly when rendering a list of many products.
-export async function computeDiscountForProduct(
+export function computeDiscountForProduct(
   productId: string,
   categoryId: string,
   price: number,
-  code?: string | null
+  options?: {
+    code?: string | null;
+    variantId?: string | null;
+    platform?: string | null;
+    activationRegionId?: string | null;
+  }
 ): Promise<DiscountMatch | null> {
-  const [activeDiscounts, memberships] = await Promise.all([
+  return Promise.all([
     getActiveDiscounts(),
     prisma.collectionProduct.findMany({ where: { productId }, select: { collectionId: true } }),
-  ]);
-  return pickBestDiscount(activeDiscounts, {
-    productId,
-    categoryId,
-    collectionIds: memberships.map((m) => m.collectionId),
-    price,
-    code,
-  });
+  ]).then(([activeDiscounts, memberships]) =>
+    pickBestDiscount(activeDiscounts, {
+      productId,
+      categoryId,
+      collectionIds: memberships.map((m) => m.collectionId),
+      price,
+      code: options?.code,
+      variantId: options?.variantId,
+      platform: options?.platform,
+      activationRegionId: options?.activationRegionId,
+    })
+  );
 }

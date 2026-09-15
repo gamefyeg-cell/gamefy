@@ -11,6 +11,10 @@ function fieldsFrom(formData: FormData) {
   const startsAt = String(formData.get("startsAt") ?? "");
   const endsAt = String(formData.get("endsAt") ?? "");
   const code = String(formData.get("code") ?? "").trim().toUpperCase();
+  const variantId = String(formData.get("variantId") ?? "").trim() || null;
+  const platform = String(formData.get("platform") ?? "").trim() || null;
+  const activationRegionId = String(formData.get("activationRegionId") ?? "").trim() || null;
+
   return {
     name: String(formData.get("name") ?? "").trim(),
     code: code || null,
@@ -18,6 +22,9 @@ function fieldsFrom(formData: FormData) {
     value: Number(formData.get("value") ?? 0),
     scope,
     scopeId: scope === "ALL" ? null : String(formData.get("scopeId") ?? "") || null,
+    variantId: scope === "PRODUCT" ? variantId : null,
+    platform: scope === "PRODUCT" ? platform : null,
+    activationRegionId: scope === "PRODUCT" ? activationRegionId : null,
     startsAt: startsAt ? new Date(startsAt) : null,
     endsAt: endsAt ? new Date(endsAt) : null,
     active: formData.get("active") === "on",

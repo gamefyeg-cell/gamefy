@@ -130,6 +130,9 @@ export async function placeOrderAction(_prev: CheckoutState, formData: FormData)
       collectionIds: collectionIdsMap.get(variant.productId) ?? [],
       price: variant.price,
       code: couponCode,
+      variantId: variant.id,
+      platform: variant.platform,
+      activationRegionId: variant.activationRegionId,
     });
     lineDiscounts.set(line.variantId, match ? { amount: match.amount, name: match.discount.name } : null);
   }

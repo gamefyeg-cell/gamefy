@@ -12,7 +12,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
         orderBy: { sortOrder: "asc" },
         include: {
           product: {
-            include: { variants: { where: { active: true }, select: { price: true, currency: true, platform: true } } },
+            include: { variants: { where: { active: true }, select: { id: true, price: true, currency: true, platform: true, activationRegionId: true } } },
           },
         },
       },

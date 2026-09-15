@@ -2,16 +2,31 @@ import Link from "next/link";
 import AddPanel from "@/components/admin/AddPanel";
 import { prisma } from "@/lib/prisma";
 import { createDiscountAction, deleteDiscountAction } from "@/lib/actions/admin/discounts";
-import { DISCOUNT_TYPES, labelFor } from "@/lib/enums";
+import { DISCOUNT_TYPES } from "@/lib/enums";
 import { formatDate } from "@/lib/format";
 import DiscountScopeFields from "@/components/admin/DiscountScopeFields";
 
 export default async function AdminDiscountsPage() {
-  const [discounts, categories, collections, products] = await Promise.all([
-    prisma.discount.findMany({ orderBy: { createdAt: "desc" } }),
+  const [discounts, categories, collections, products, activationRegions] = await Promise.all([
+    prisma.discount.findMany({
+      include: {
+        variant: true,
+        activationRegion: true,
+      },
+      orderBy: { createdAt: "desc" },
+    }),
     prisma.category.findMany({ orderBy: { name: "asc" } }),
     prisma.collection.findMany({ orderBy: { name: "asc" } }),
-    prisma.product.findMany({ orderBy: { title: "asc" } }),
+    prisma.product.findMany({
+      include: {
+        variants: {
+          include: { activationRegion: true },
+          orderBy: { price: "asc" },
+        },
+      },
+      orderBy: { title: "asc" },
+    }),
+    prisma.activationRegion.findMany({ orderBy: [{ kind: "asc" }, { name: "asc" }] }),
   ]);
 
   const namesById = new Map<string, string>([
@@ -19,17 +34,49 @@ export default async function AdminDiscountsPage() {
     ...collections.map((c) => [c.id, c.name] as const),
     ...products.map((p) => [p.id, p.title] as const),
   ]);
-  const nameFor = (scope: string, scopeId: string | null) =>
-    scope === "ALL" || !scopeId ? "Whole website" : namesById.get(scopeId) ?? scopeId;
+
+  const targetLabelFor = (d: (typeof discounts)[number]) => {
+    if (d.scope === "ALL" || !d.scopeId) return "whole website";
+    if (d.scope === "CATEGORY") return `category: ${namesById.get(d.scopeId) ?? d.scopeId}`;
+    if (d.scope === "COLLECTION") return `collection: ${namesById.get(d.scopeId) ?? d.scopeId}`;
+    if (d.scope === "PRODUCT") {
+      const prodName = namesById.get(d.scopeId) ?? d.scopeId;
+      const specs: string[] = [];
+      if (d.variant) {
+        const vDesc = [d.variant.platform, d.variant.edition, d.variant.durationLabel].filter(Boolean).join(" · ") || d.variant.sku;
+        specs.push(`option: ${vDesc}`);
+      } else {
+        if (d.platform) specs.push(`platform: ${d.platform}`);
+        if (d.activationRegion) specs.push(`region: ${d.activationRegion.name}`);
+      }
+      return specs.length > 0 ? `product: ${prodName} (${specs.join(" · ")})` : `product: ${prodName}`;
+    }
+    return d.scope.toLowerCase();
+  };
+
+  const productData = products.map((p) => ({
+    id: p.id,
+    name: p.title,
+    variants: p.variants.map((v) => ({
+      id: v.id,
+      sku: v.sku,
+      platform: v.platform,
+      edition: v.edition,
+      durationLabel: v.durationLabel,
+      price: v.price,
+      currency: v.currency,
+      activationRegionId: v.activationRegionId,
+      activationRegionName: v.activationRegion?.name ?? null,
+    })),
+  }));
 
   return (
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-2xl font-bold text-white">Discounts &amp; Offers</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Run a sale on one product, a whole category/collection, or the entire storefront. Leave "Code"
-          blank for it to apply automatically — set a code to make it a coupon buyers must enter at
-          checkout.
+          Run a sale on one product (or specific platform/region/variant), a whole category/collection, or the entire storefront.
+          Leave "Code" blank for it to apply automatically — set a code to make it a coupon buyers must enter at checkout.
         </p>
       </div>
 
@@ -41,9 +88,7 @@ export default async function AdminDiscountsPage() {
               <span className="text-slate-100">{d.name}</span>
               <span className="text-slate-500 ml-2 text-xs">
                 {d.type === "PERCENT" ? `${d.value}% off` : `${d.value} off`} ·{" "}
-                {nameFor(d.scope, d.scopeId) === "Whole website"
-                  ? "whole website"
-                  : `${d.scope.toLowerCase()}: ${nameFor(d.scope, d.scopeId)}`}
+                {targetLabelFor(d)}
                 {d.code ? ` · code ${d.code}` : " · automatic"}
                 {d.endsAt ? ` · ends ${formatDate(d.endsAt)}` : ""}
               </span>
@@ -90,7 +135,8 @@ export default async function AdminDiscountsPage() {
           <DiscountScopeFields
             categories={categories}
             collections={collections}
-            products={products.map((p) => ({ id: p.id, name: p.title }))}
+            products={productData}
+            activationRegions={activationRegions}
           />
           <div>
             <label className="label">Starts (optional)</label>

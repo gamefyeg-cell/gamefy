@@ -30,7 +30,7 @@ export default async function AllProductsPage({
 
   const allProducts = await prisma.product.findMany({
     where: { active: true },
-    include: { variants: { where: { active: true }, select: { price: true, currency: true, platform: true } } },
+    include: { variants: { where: { active: true }, select: { id: true, price: true, currency: true, platform: true, activationRegionId: true } } },
     orderBy: { createdAt: "desc" },
   });
 

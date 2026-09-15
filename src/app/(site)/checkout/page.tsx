@@ -53,6 +53,9 @@ export default async function CheckoutPage({
         collectionIds: collectionIdsMap.get(variant.productId) ?? [],
         price: variant.price,
         code: coupon,
+        variantId: variant.id,
+        platform: variant.platform,
+        activationRegionId: variant.activationRegionId,
       });
       return {
         variantId: line.variantId,
