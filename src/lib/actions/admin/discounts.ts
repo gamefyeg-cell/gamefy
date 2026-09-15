@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/actions/admin/guard";
 import { logAudit } from "@/lib/actions/admin/audit";
+import { ensureDiscountSchema } from "@/lib/discounts";
 
 function fieldsFrom(formData: FormData) {
   const scope = String(formData.get("scope") ?? "ALL");
@@ -33,6 +34,7 @@ function fieldsFrom(formData: FormData) {
 
 export async function createDiscountAction(formData: FormData) {
   const session = await requireAdmin(["SUPER_ADMIN", "PRODUCT_MANAGER"]);
+  await ensureDiscountSchema();
   const data = fieldsFrom(formData);
   if (!data.name) throw new Error("Name is required.");
   if (data.scope !== "ALL" && !data.scopeId) throw new Error("Pick what this discount applies to.");
@@ -48,6 +50,7 @@ export async function createDiscountAction(formData: FormData) {
 
 export async function updateDiscountAction(formData: FormData) {
   const session = await requireAdmin(["SUPER_ADMIN", "PRODUCT_MANAGER"]);
+  await ensureDiscountSchema();
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("Missing discount id.");
 

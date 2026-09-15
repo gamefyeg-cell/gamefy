@@ -11,10 +11,13 @@ function toLocalInput(date: Date | null) {
   return d.toISOString().slice(0, 16);
 }
 
+import { ensureDiscountSchema } from "@/lib/discounts";
+
 export default async function EditDiscountPage({ params }: { params: Promise<{ id: string }> }) {
+  await ensureDiscountSchema();
   const { id } = await params;
   const [discount, categories, collections, products, activationRegions] = await Promise.all([
-    prisma.discount.findUnique({ where: { id } }),
+    prisma.discount.findUnique({ where: { id } }).catch(() => null),
     prisma.category.findMany({ orderBy: { name: "asc" } }),
     prisma.collection.findMany({ orderBy: { name: "asc" } }),
     prisma.product.findMany({

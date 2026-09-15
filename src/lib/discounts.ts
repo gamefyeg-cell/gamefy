@@ -30,19 +30,87 @@ export interface DiscountTargetParams {
   activationRegionId?: string | null;
 }
 
+let schemaMigrated = false;
+
+export async function ensureDiscountSchema(): Promise<void> {
+  if (schemaMigrated) return;
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "variantId" TEXT;
+      ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "platform" TEXT;
+      ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "activationRegionId" TEXT;
+    `);
+    schemaMigrated = true;
+  } catch {
+    // ignore if cannot run DDL or already migrated
+  }
+}
+
 /// All discounts currently in their active schedule window — fetch once
 /// per request/page and reuse across every product on it.
 export async function getActiveDiscounts(): Promise<ActiveDiscount[]> {
   const now = new Date();
-  return prisma.discount.findMany({
-    where: {
-      active: true,
-      AND: [
-        { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
-        { OR: [{ endsAt: null }, { endsAt: { gte: now } }] },
-      ],
-    },
-  });
+  try {
+    return await prisma.discount.findMany({
+      where: {
+        active: true,
+        AND: [
+          { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
+          { OR: [{ endsAt: null }, { endsAt: { gte: now } }] },
+        ],
+      },
+    });
+  } catch (err: unknown) {
+    const error = err as { code?: string; message?: string };
+    if (error?.code === "P2022" || String(error?.message).includes("variantId")) {
+      await ensureDiscountSchema();
+      try {
+        return await prisma.discount.findMany({
+          where: {
+            active: true,
+            AND: [
+              { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
+              { OR: [{ endsAt: null }, { endsAt: { gte: now } }] },
+            ],
+          },
+        });
+      } catch {
+        // Fallback to raw query if DDL is not permitted on this connection
+        try {
+          const raw = await prisma.$queryRaw<Array<{
+            id: string;
+            name: string;
+            code: string | null;
+            type: string;
+            value: number;
+            scope: string;
+            scopeId: string | null;
+          }>>`
+            SELECT id, name, code, type, value, scope, "scopeId"
+            FROM "discounts"
+            WHERE active = true
+              AND ("startsAt" IS NULL OR "startsAt" <= ${now})
+              AND ("endsAt" IS NULL OR "endsAt" >= ${now})
+          `;
+          return raw.map((r) => ({
+            id: r.id,
+            name: r.name,
+            code: r.code,
+            type: r.type,
+            value: Number(r.value),
+            scope: r.scope,
+            scopeId: r.scopeId,
+            variantId: null,
+            platform: null,
+            activationRegionId: null,
+          }));
+        } catch {
+          return [];
+        }
+      }
+    }
+    return [];
+  }
 }
 
 function amountFor(discount: ActiveDiscount, price: number): number {

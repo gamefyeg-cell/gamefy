@@ -6,15 +6,12 @@ import { DISCOUNT_TYPES } from "@/lib/enums";
 import { formatDate } from "@/lib/format";
 import DiscountScopeFields from "@/components/admin/DiscountScopeFields";
 
+import { ensureDiscountSchema } from "@/lib/discounts";
+
 export default async function AdminDiscountsPage() {
-  const [discounts, categories, collections, products, activationRegions] = await Promise.all([
-    prisma.discount.findMany({
-      include: {
-        variant: true,
-        activationRegion: true,
-      },
-      orderBy: { createdAt: "desc" },
-    }),
+  await ensureDiscountSchema();
+
+  const [categories, collections, products, activationRegions] = await Promise.all([
     prisma.category.findMany({ orderBy: { name: "asc" } }),
     prisma.collection.findMany({ orderBy: { name: "asc" } }),
     prisma.product.findMany({
@@ -28,6 +25,21 @@ export default async function AdminDiscountsPage() {
     }),
     prisma.activationRegion.findMany({ orderBy: [{ kind: "asc" }, { name: "asc" }] }),
   ]);
+
+  let discounts: any[] = [];
+  try {
+    discounts = await prisma.discount.findMany({
+      include: {
+        variant: true,
+        activationRegion: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch {
+    discounts = await prisma.discount.findMany({
+      orderBy: { createdAt: "desc" },
+    }).catch(() => []);
+  }
 
   const namesById = new Map<string, string>([
     ...categories.map((c) => [c.id, c.name] as const),
