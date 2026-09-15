@@ -40,7 +40,40 @@ export async function createDiscountAction(formData: FormData) {
   if (data.scope !== "ALL" && !data.scopeId) throw new Error("Pick what this discount applies to.");
   if (data.value <= 0) throw new Error("Discount value must be greater than 0.");
 
-  const created = await prisma.discount.create({ data });
+  let created;
+  try {
+    created = await prisma.discount.create({ data });
+  } catch (err: unknown) {
+    const error = err as { code?: string; message?: string };
+    if (error?.code === "P2022" || String(error?.message).includes("variantId")) {
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "variantId" TEXT`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "platform" TEXT`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "activationRegionId" TEXT`);
+        created = await prisma.discount.create({ data });
+      } catch {
+        const rawId = `disc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO "discounts" ("id", "name", "code", "type", "value", "scope", "scopeId", "startsAt", "endsAt", "active", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())`,
+          rawId,
+          data.name,
+          data.code,
+          data.type,
+          data.value,
+          data.scope,
+          data.scopeId,
+          data.startsAt,
+          data.endsAt,
+          data.active
+        );
+        created = { id: rawId, ...data };
+      }
+    } else {
+      throw err;
+    }
+  }
+
   await logAudit(session.userId, "discount.create", `Discount:${created.id}`, null, created);
 
   revalidatePath("/admin/discounts");
@@ -54,8 +87,42 @@ export async function updateDiscountAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("Missing discount id.");
 
-  const before = await prisma.discount.findUnique({ where: { id } });
-  const updated = await prisma.discount.update({ where: { id }, data: fieldsFrom(formData) });
+  const before = await prisma.discount.findUnique({ where: { id } }).catch(() => null);
+  const data = fieldsFrom(formData);
+  let updated;
+  try {
+    updated = await prisma.discount.update({ where: { id }, data });
+  } catch (err: unknown) {
+    const error = err as { code?: string; message?: string };
+    if (error?.code === "P2022" || String(error?.message).includes("variantId")) {
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "variantId" TEXT`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "platform" TEXT`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "activationRegionId" TEXT`);
+        updated = await prisma.discount.update({ where: { id }, data });
+      } catch {
+        await prisma.$executeRawUnsafe(
+          `UPDATE "discounts"
+           SET "name" = $1, "code" = $2, "type" = $3, "value" = $4, "scope" = $5, "scopeId" = $6,
+               "startsAt" = $7, "endsAt" = $8, "active" = $9, "updatedAt" = NOW()
+           WHERE "id" = $10`,
+          data.name,
+          data.code,
+          data.type,
+          data.value,
+          data.scope,
+          data.scopeId,
+          data.startsAt,
+          data.endsAt,
+          data.active,
+          id
+        );
+        updated = { id, ...data };
+      }
+    } else {
+      throw err;
+    }
+  }
   await logAudit(session.userId, "discount.update", `Discount:${id}`, before, updated);
 
   revalidatePath("/admin/discounts");

@@ -35,15 +35,15 @@ let schemaMigrated = false;
 export async function ensureDiscountSchema(): Promise<void> {
   if (schemaMigrated) return;
   try {
-    await prisma.$executeRawUnsafe(`
-      ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "variantId" TEXT;
-      ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "platform" TEXT;
-      ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "activationRegionId" TEXT;
-    `);
-    schemaMigrated = true;
-  } catch {
-    // ignore if cannot run DDL or already migrated
-  }
+    await prisma.$executeRawUnsafe(`ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "variantId" TEXT`);
+  } catch {}
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "platform" TEXT`);
+  } catch {}
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE "discounts" ADD COLUMN IF NOT EXISTS "activationRegionId" TEXT`);
+  } catch {}
+  schemaMigrated = true;
 }
 
 /// All discounts currently in their active schedule window — fetch once
