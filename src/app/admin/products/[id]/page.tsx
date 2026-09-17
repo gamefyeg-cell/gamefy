@@ -6,9 +6,11 @@ import {
   deleteProductAction,
   createVariantAction,
   createCustomFieldAction,
+  createQuickCustomFieldAction,
   deleteCustomFieldAction,
 } from "@/lib/actions/admin/products";
 import { PRODUCT_TYPES, SALE_MODES, CUSTOM_FIELD_TYPES, labelFor } from "@/lib/enums";
+import { TOPUP_FIELD_TEMPLATES } from "@/lib/variant-options";
 import { parseStringArray } from "@/lib/json";
 import { formatMoney } from "@/lib/format";
 import ImageUploader from "@/components/admin/ImageUploader";
@@ -208,6 +210,31 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
             ))
           )}
         </div>
+
+        {product.type === "TOPUP" && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-3 text-xs">
+            <span className="font-semibold text-slate-400">Quick-add a field:</span>
+            {TOPUP_FIELD_TEMPLATES.map((t) => {
+              const alreadyAdded = product.customFields.some((f) => f.fieldKey === t.fieldKey);
+              if (alreadyAdded) {
+                return (
+                  <span key={t.templateKey} className="a-badge opacity-60">
+                    ✓ {t.label}
+                  </span>
+                );
+              }
+              return (
+                <form key={t.templateKey} action={createQuickCustomFieldAction} className="inline">
+                  <input type="hidden" name="productId" value={product.id} />
+                  <input type="hidden" name="template" value={t.templateKey} />
+                  <button type="submit" className="a-btn a-btn-secondary a-btn-sm">
+                    + {t.label}
+                  </button>
+                </form>
+              );
+            })}
+          </div>
+        )}
 
         <form action={createCustomFieldAction} className="a-card" style={{ padding: "1rem" }}>
           <input type="hidden" name="productId" value={product.id} />

@@ -8,6 +8,7 @@ import { logAudit } from "@/lib/actions/admin/audit";
 import { toJson } from "@/lib/json";
 import { encryptSecret } from "@/lib/crypto";
 import { PRODUCT_TYPES, labelFor } from "@/lib/enums";
+import { TOPUP_FIELD_TEMPLATES } from "@/lib/variant-options";
 
 function slugify(input: string) {
   return input.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -261,6 +262,33 @@ export async function createProductWizardAction(formData: FormData) {
     }
   }
 
+  const customFieldTemplatesRaw = String(formData.get("customFieldTemplates") ?? "").trim();
+  if (customFieldTemplatesRaw) {
+    try {
+      const templates = JSON.parse(customFieldTemplatesRaw);
+      if (Array.isArray(templates)) {
+        for (let i = 0; i < templates.length; i++) {
+          const t = templates[i];
+          if (t && t.fieldKey) {
+            await prisma.customField.create({
+              data: {
+                productId: product.id,
+                fieldKey: String(t.fieldKey),
+                label: String(t.label || t.fieldKey),
+                type: String(t.type || "TEXT"),
+                required: t.required !== false,
+                options: toJson(Array.isArray(t.options) ? t.options : []),
+                sortOrder: i,
+              },
+            });
+          }
+        }
+      }
+    } catch {
+      /* ignore invalid JSON */
+    }
+  }
+
   const created = product;
 
   await logAudit(session.userId, "product.create", `Product:${created.id}`, null, {
@@ -408,6 +436,46 @@ export async function createCustomFieldAction(formData: FormData) {
     },
   });
   await logAudit(session.userId, "custom_field.create", `CustomField:${created.id}`, null, created);
+
+  revalidatePath(`/admin/products/${productId}`);
+  redirect(`/admin/products/${productId}`);
+}
+
+export async function createQuickCustomFieldAction(formData: FormData) {
+  const session = await requireAdmin(["SUPER_ADMIN", "PRODUCT_MANAGER"]);
+  const productId = String(formData.get("productId") ?? "");
+  const templateKey = String(formData.get("template") ?? "").trim();
+  if (!productId || !templateKey) throw new Error("Product and template key are required.");
+
+  const template = TOPUP_FIELD_TEMPLATES.find(
+    (t) => t.templateKey === templateKey || t.fieldKey === templateKey
+  );
+  if (!template) throw new Error(`Unknown field template: ${templateKey}`);
+
+  const existing = await prisma.customField.findUnique({
+    where: {
+      productId_fieldKey: {
+        productId,
+        fieldKey: template.fieldKey,
+      },
+    },
+  });
+
+  if (!existing) {
+    const count = await prisma.customField.count({ where: { productId } });
+    const created = await prisma.customField.create({
+      data: {
+        productId,
+        fieldKey: template.fieldKey,
+        label: template.label,
+        type: template.type,
+        required: template.required,
+        options: toJson(template.options ?? []),
+        sortOrder: count,
+      },
+    });
+    await logAudit(session.userId, "custom_field.create", `CustomField:${created.id}`, null, created);
+  }
 
   revalidatePath(`/admin/products/${productId}`);
   redirect(`/admin/products/${productId}`);

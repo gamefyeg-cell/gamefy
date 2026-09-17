@@ -40,3 +40,52 @@ export function splitDuration(value: string | null | undefined): { preset: strin
     ? { preset: value, custom: "" }
     : { preset: "__custom__", custom: value };
 }
+
+export interface TopupFieldTemplate {
+  templateKey: string;
+  fieldKey: string;
+  label: string;
+  type: string;
+  required: boolean;
+  options?: string[];
+}
+
+export const TOPUP_FIELD_TEMPLATES: TopupFieldTemplate[] = [
+  {
+    templateKey: "player_id",
+    fieldKey: "player_id",
+    label: "Player ID",
+    type: "TEXT",
+    required: true,
+  },
+  {
+    templateKey: "username",
+    fieldKey: "username",
+    label: "Username",
+    type: "TEXT",
+    required: true,
+  },
+  {
+    templateKey: "game_id",
+    fieldKey: "game_id",
+    label: "Game ID",
+    type: "TEXT",
+    required: true,
+  },
+  {
+    templateKey: "server",
+    fieldKey: "server",
+    label: "Server / Region",
+    type: "SELECT",
+    required: true,
+    options: [],
+  },
+  {
+    templateKey: "zone_id",
+    fieldKey: "zone_id",
+    label: "Zone ID",
+    type: "TEXT",
+    required: false,
+  },
+];
+

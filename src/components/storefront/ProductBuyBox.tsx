@@ -377,7 +377,7 @@ export default function ProductBuyBox({
                   {field.label}
                   {field.required && <span className="text-danger"> *</span>}
                 </label>
-                {field.type === "SELECT" ? (
+                {field.type === "SELECT" && options.length > 0 ? (
                   <select name={`cf_${field.fieldKey}`} required={field.required} className="input">
                     {options.map((o) => (
                       <option key={o} value={o}>
@@ -385,6 +385,14 @@ export default function ProductBuyBox({
                       </option>
                     ))}
                   </select>
+                ) : field.type === "SELECT" ? (
+                  <input
+                    type="text"
+                    name={`cf_${field.fieldKey}`}
+                    required={field.required}
+                    placeholder={`Enter ${field.label}`}
+                    className="input"
+                  />
                 ) : field.type === "CHECKBOX" ? (
                   <input type="checkbox" name={`cf_${field.fieldKey}`} className="h-4 w-4" />
                 ) : (

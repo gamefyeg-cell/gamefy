@@ -18,7 +18,13 @@ import ImageUploader from "@/components/admin/ImageUploader";
 import SingleImageUploader from "@/components/admin/SingleImageUploader";
 import RichTextArea from "@/components/admin/RichTextArea";
 import { Field, StepHead, WizardProgress, WizardNav, useStepper } from "@/components/admin/wizard-ui";
-import { DURATION_PRESETS, deliveryOptionsFor, defaultSaleModeFor } from "@/lib/variant-options";
+import {
+  DURATION_PRESETS,
+  deliveryOptionsFor,
+  defaultSaleModeFor,
+  TOPUP_FIELD_TEMPLATES,
+  type TopupFieldTemplate,
+} from "@/lib/variant-options";
 
 interface Category {
   id: string;
@@ -67,10 +73,12 @@ export default function ProductWizard({
   const [axisTextRaw, setAxisTextRaw] = useState("");
   const [addPricing, setAddPricing] = useState(true);
   const [vui, setVui] = useState<VUI[]>([makeVUI("GAME")]);
+  const [wizardFields, setWizardFields] = useState<TopupFieldTemplate[]>([]);
 
   const isGiftcard = type === "GIFTCARD";
   const isSub = type === "SUBSCRIPTION";
-  const showAxisStep = type === "GAME" || type === "ACCOUNT" || isGiftcard || isSub;
+  const isTopup = type === "TOPUP";
+  const showAxisStep = type === "GAME" || type === "ACCOUNT" || isGiftcard || isSub || isTopup;
   const axisTextValues = useMemo(
     () =>
       axisTextRaw
@@ -81,8 +89,8 @@ export default function ProductWizard({
   );
   // The "axis" is whatever this product has more than one of — platform
   // for games/accounts, face value for gift cards, plan tier for
-  // subscriptions. Each axis value gets its own price/region/stock step.
-  const axisValues = isGiftcard || isSub ? axisTextValues : platforms;
+  // subscriptions, region for top-ups. Each axis value gets its own price/region/stock step.
+  const axisValues = isGiftcard || isSub || isTopup ? axisTextValues : platforms;
   const variantKeys = useMemo(() => (axisValues.length ? axisValues : [""]), [axisValues]);
 
   const stepKeys = useMemo(() => {
@@ -127,21 +135,21 @@ export default function ProductWizard({
     setType(nextType);
     setVui((prev) => prev.map(() => makeVUI(nextType)));
     if (nextType !== "GAME" && nextType !== "ACCOUNT") setPlatforms([]);
-    if (nextType !== "GIFTCARD" && nextType !== "SUBSCRIPTION") setAxisTextRaw("");
+    if (nextType !== "GIFTCARD" && nextType !== "SUBSCRIPTION" && nextType !== "TOPUP") setAxisTextRaw("");
   }
   function togglePlatform(value: string, on: boolean) {
     setPlatforms((prev) => (on ? [...prev, value] : prev.filter((p) => p !== value)));
   }
 
   function axisDisplayLabel(pk: string) {
-    return isGiftcard || isSub ? pk : labelFor(PLATFORMS, pk);
+    return isGiftcard || isSub || isTopup ? pk : labelFor(PLATFORMS, pk);
   }
 
   function stepLabel(key: string) {
     if (key === "basics") return "Name";
     if (key === "media") return "Images";
     if (key === "description") return "Description";
-    if (key === "axis") return isGiftcard ? "Values" : isSub ? "Plans" : "Platforms";
+    if (key === "axis") return isGiftcard ? "Values" : isSub ? "Plans" : isTopup ? "Regions" : "Platforms";
     if (key === "review") return "Review";
     const i = Number(key.slice(1));
     const pk = variantKeys[i];
@@ -238,6 +246,62 @@ export default function ProductWizard({
             </div>
           </details>
 
+          {isTopup && (
+            <div className="a-span-2 mt-2 rounded-xl border border-white/10 bg-white/[0.02] p-3.5 flex flex-col gap-2.5">
+              <div>
+                <span className="block text-sm font-semibold" style={{ color: "var(--a-text)" }}>
+                  Checkout fields
+                </span>
+                <span className="a-hint !mt-0.5 block text-xs">
+                  What info do you need from the buyer? Quick-add common top-up inputs:
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-slate-400">Quick-add:</span>
+                {TOPUP_FIELD_TEMPLATES.map((t) => {
+                  const selected = wizardFields.some((f) => f.fieldKey === t.fieldKey);
+                  return (
+                    <button
+                      key={t.templateKey}
+                      type="button"
+                      onClick={() => {
+                        setWizardFields((prev) =>
+                          selected
+                            ? prev.filter((f) => f.fieldKey !== t.fieldKey)
+                            : [...prev, t]
+                        );
+                      }}
+                      className={`a-btn a-btn-sm ${selected ? "a-btn-primary" : "a-btn-secondary"}`}
+                    >
+                      {selected ? `✓ ${t.label}` : `+ ${t.label}`}
+                    </button>
+                  );
+                })}
+              </div>
+              {wizardFields.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-white/10">
+                  {wizardFields.map((f) => (
+                    <span key={f.fieldKey} className="a-chip flex items-center gap-1.5 text-xs py-1 px-2.5">
+                      <span className="text-white font-medium">{f.label}</span>
+                      <span className="text-slate-400 text-[10px]">
+                        ({f.type}{f.required ? ", required" : ""})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setWizardFields((prev) => prev.filter((x) => x.fieldKey !== f.fieldKey))}
+                        className="ml-1 text-slate-400 hover:text-white font-bold"
+                        aria-label={`Remove ${f.label}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <input type="hidden" name="customFieldTemplates" value={JSON.stringify(wizardFields)} />
+            </div>
+          )}
+
           <hr className="a-divider" />
           <label className="a-span-2 flex items-start gap-2">
             <input type="checkbox" checked={addPricing} onChange={(e) => setAddPricing(e.target.checked)} className="mt-0.5" />
@@ -248,7 +312,7 @@ export default function ProductWizard({
           </label>
         </div>
 
-        {/* -------- Axis: platforms (game/account) or values (gift card) -------- */}
+        {/* -------- Axis: platforms (game/account), values (gift card), or regions (top-up) -------- */}
         {showAxisStep && (
           <div data-stepkey="axis" hidden={currentKey !== "axis"} className="a-step-panel">
             {isGiftcard ? (
@@ -267,6 +331,29 @@ export default function ProductWizard({
                     value={axisTextRaw}
                     onChange={(e) => setAxisTextRaw(e.target.value)}
                     placeholder="30 CNY, 50 CNY, 60 CNY"
+                  />
+                </Field>
+                <p className="a-span-2 a-hint">
+                  {axisTextValues.length === 0
+                    ? "→ one price step"
+                    : `→ ${axisTextValues.length} step${axisTextValues.length === 1 ? "" : "s"}: ${axisTextValues.join(", ")}`}
+                </p>
+              </>
+            ) : isTopup ? (
+              <>
+                <StepHead title="Which regions do you sell?">
+                  e.g. NA, EU, SEA, MENA, Global — comma-separated. Each gets its own price step.
+                </StepHead>
+                <Field
+                  label="Regions"
+                  full
+                  hint="e.g. NA, EU, SEA, MENA, Global — comma-separated. Each gets its own price step. Leave blank if there is only one option."
+                >
+                  <input
+                    className="a-input"
+                    value={axisTextRaw}
+                    onChange={(e) => setAxisTextRaw(e.target.value)}
+                    placeholder="NA, EU, SEA, MENA, Global"
                   />
                 </Field>
                 <p className="a-span-2 a-hint">
@@ -342,13 +429,17 @@ export default function ProductWizard({
                       What <em>you charge</em> for this one — separate from the card's own balance/currency you set on
                       the last step.
                     </>
+                  ) : isTopup ? (
+                    <>
+                      Set the price and stock for the <strong>{axisDisplayLabel(pk)}</strong> region.
+                    </>
                   ) : (
                     <>
                       Just the essentials. Everything else has a sensible default under <em>More options</em>.
                     </>
                   )}
                 </StepHead>
-                {isGiftcard || isSub ? (
+                {isGiftcard || isSub || isTopup ? (
                   <input type="hidden" name={`v${i}_edition`} value={pk} />
                 ) : (
                   <input type="hidden" name={`v${i}_platform`} value={pk} />
@@ -425,7 +516,7 @@ export default function ProductWizard({
                 )}
 
                 <details className="a-more">
-                  <summary>More options for this {pk ? (isGiftcard ? "value" : isSub ? "plan" : "platform") : "option"}</summary>
+                  <summary>More options for this {pk ? (isGiftcard ? "value" : isSub ? "plan" : isTopup ? "region" : "platform") : "option"}</summary>
                   <div className="a-more-body">
                     <Field label="Delivery method" tip="Usually auto-picked from “How it's sold”. Change only if you deliver a different way.">
                       <select
@@ -527,13 +618,21 @@ export default function ProductWizard({
               {labelFor(PRODUCT_TYPES, type)}
             </div>
             <div>
-              <span className="a-sub block">{isGiftcard ? "Values" : isSub ? "Plans" : "Platforms"}</span>
+              <span className="a-sub block">{isGiftcard ? "Values" : isSub ? "Plans" : isTopup ? "Regions" : "Platforms"}</span>
               {axisValues.length
-                ? isGiftcard || isSub
+                ? isGiftcard || isSub || isTopup
                   ? axisValues.join(", ")
                   : axisValues.map((p) => labelFor(PLATFORMS, p)).join(", ")
                 : "Single option"}
             </div>
+            {wizardFields.length > 0 && (
+              <div className="sm:col-span-2">
+                <span className="a-sub block">Checkout fields</span>
+                <span style={{ color: "var(--a-text)" }}>
+                  {wizardFields.map((f) => `${f.label}${f.required ? " *" : ""}`).join(", ")}
+                </span>
+              </div>
+            )}
           </div>
 
           {!addPricing ? (

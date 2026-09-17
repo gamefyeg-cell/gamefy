@@ -89,6 +89,7 @@ export default function VariantForm({
   const isGame = productType === "GAME";
   const isSub = productType === "SUBSCRIPTION";
   const isGiftcard = productType === "GIFTCARD";
+  const isTopup = productType === "TOPUP";
   const accountFields = saleMode === "FULL_ACCOUNT" || saleMode === "SHARED_ACCOUNT";
   const durationValue = durationPreset === "__custom__" ? durationCustom : durationPreset;
 
@@ -134,6 +135,13 @@ export default function VariantForm({
               tip='Which subscription tier this is, e.g. "Basic" / "Standard" / "Premium" (Netflix), "Essential" / "Extra" / "Deluxe" (PS Plus), or "Individual" / "Duo" / "Family" (Spotify). Leave blank if there is only one plan.'
             >
               <input name="edition" className="a-input" defaultValue={defaults.edition ?? ""} placeholder="Standard" />
+            </Field>
+          ) : isTopup ? (
+            <Field
+              label="Region"
+              tip='Which game region this top-up option is for — e.g. "NA", "EU", "SEA", "MENA", "Global".'
+            >
+              <input name="edition" className="a-input" defaultValue={defaults.edition ?? ""} placeholder="e.g. NA" />
             </Field>
           ) : (
             <Field label="Platform" hint="Set it when the product is sold for more than one platform.">
@@ -218,7 +226,7 @@ export default function VariantForm({
             </details>
           )}
           {mode === "create" && <input type="hidden" name="cost" value="" />}
-          {!isGame && !isSub && !isGiftcard && <input type="hidden" name="edition" value={defaults.edition ?? ""} />}
+          {!isGame && !isSub && !isGiftcard && !isTopup && <input type="hidden" name="edition" value={defaults.edition ?? ""} />}
         </div>
 
         {/* -------- Delivery & stock -------- */}
