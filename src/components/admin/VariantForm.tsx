@@ -138,10 +138,10 @@ export default function VariantForm({
             </Field>
           ) : isTopup ? (
             <Field
-              label="Region"
-              tip='Which game region this top-up option is for — e.g. "NA", "EU", "SEA", "MENA", "Global".'
+              label="Top-up amount"
+              tip='The top-up amount / value buyer receives (e.g. "100", "500", "1000", "60 UC"). Shown in the "Select Amount" grid.'
             >
-              <input name="edition" className="a-input" defaultValue={defaults.edition ?? ""} placeholder="e.g. NA" />
+              <input name="edition" className="a-input" defaultValue={defaults.edition ?? ""} placeholder="e.g. 100" />
             </Field>
           ) : (
             <Field label="Platform" hint="Set it when the product is sold for more than one platform.">

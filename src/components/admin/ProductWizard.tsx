@@ -149,7 +149,7 @@ export default function ProductWizard({
     if (key === "basics") return "Name";
     if (key === "media") return "Images";
     if (key === "description") return "Description";
-    if (key === "axis") return isGiftcard ? "Values" : isSub ? "Plans" : isTopup ? "Regions" : "Platforms";
+    if (key === "axis") return isGiftcard ? "Values" : isSub ? "Plans" : isTopup ? "Amounts" : "Platforms";
     if (key === "review") return "Review";
     const i = Number(key.slice(1));
     const pk = variantKeys[i];
@@ -341,19 +341,19 @@ export default function ProductWizard({
               </>
             ) : isTopup ? (
               <>
-                <StepHead title="Which regions do you sell?">
-                  e.g. NA, EU, SEA, MENA, Global — comma-separated. Each gets its own price step.
+                <StepHead title="Which top-up amounts do you sell?">
+                  e.g. 100, 500, 1000, 2180, 5680, 11680 (or 60 UC, 325 UC, 660 UC) — each amount gets its own price step.
                 </StepHead>
                 <Field
-                  label="Regions"
+                  label="Amounts / Packages"
                   full
-                  hint="e.g. NA, EU, SEA, MENA, Global — comma-separated. Each gets its own price step. Leave blank if there is only one option."
+                  hint='Comma-separated top-up values or points. e.g. "100, 500, 1000, 2180, 5680, 11680" or "60 UC, 325 UC, 660 UC". Leave blank for a single option.'
                 >
                   <input
                     className="a-input"
                     value={axisTextRaw}
                     onChange={(e) => setAxisTextRaw(e.target.value)}
-                    placeholder="NA, EU, SEA, MENA, Global"
+                    placeholder="100, 500, 1000, 2180, 5680, 11680"
                   />
                 </Field>
                 <p className="a-span-2 a-hint">
@@ -431,7 +431,7 @@ export default function ProductWizard({
                     </>
                   ) : isTopup ? (
                     <>
-                      Set the price and stock for the <strong>{axisDisplayLabel(pk)}</strong> region.
+                      Set the price and region for <strong>{axisDisplayLabel(pk)}</strong> top-up.
                     </>
                   ) : (
                     <>
@@ -458,12 +458,14 @@ export default function ProductWizard({
                   </select>
                 </Field>
 
-                {(isGiftcard || isSub) && (
+                {(isGiftcard || isSub || isTopup) && (
                   <Field
                     label="Region"
                     full
                     tip={
-                      isGiftcard
+                      isTopup
+                        ? "Which store or game region this top-up variant is for (e.g. Global, NA, EU). Leave Global if worldwide."
+                        : isGiftcard
                         ? "Which store region this code redeems in — e.g. a Steam US wallet code won't work on a Steam UK account."
                         : "Subscription pricing is often region-locked — e.g. Netflix/Spotify/PS Plus price very differently by country and a plan bought in one region may not activate in another."
                     }
@@ -516,7 +518,7 @@ export default function ProductWizard({
                 )}
 
                 <details className="a-more">
-                  <summary>More options for this {pk ? (isGiftcard ? "value" : isSub ? "plan" : isTopup ? "region" : "platform") : "option"}</summary>
+                  <summary>More options for this {pk ? (isGiftcard ? "value" : isSub ? "plan" : isTopup ? "amount" : "platform") : "option"}</summary>
                   <div className="a-more-body">
                     <Field label="Delivery method" tip="Usually auto-picked from “How it's sold”. Change only if you deliver a different way.">
                       <select
@@ -618,7 +620,7 @@ export default function ProductWizard({
               {labelFor(PRODUCT_TYPES, type)}
             </div>
             <div>
-              <span className="a-sub block">{isGiftcard ? "Values" : isSub ? "Plans" : isTopup ? "Regions" : "Platforms"}</span>
+              <span className="a-sub block">{isGiftcard ? "Values" : isSub ? "Plans" : isTopup ? "Amounts" : "Platforms"}</span>
               {axisValues.length
                 ? isGiftcard || isSub || isTopup
                   ? axisValues.join(", ")

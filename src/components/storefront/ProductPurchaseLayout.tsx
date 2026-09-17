@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import ProductBuyBox from "@/components/storefront/ProductBuyBox";
 import GiftCardOptionGrid from "@/components/storefront/GiftCardOptionGrid";
+import TopupAmountGrid from "@/components/storefront/TopupAmountGrid";
 import Reveal from "@/components/storefront/Reveal";
 
 interface Variant {
@@ -61,6 +62,7 @@ export default function ProductPurchaseLayout({
 }) {
   const usable = useMemo(() => variants.filter((v) => v.active), [variants]);
   const isGiftcard = productType === "GIFTCARD" && usable.length > 1;
+  const isTopup = productType === "TOPUP" && usable.length > 0;
   const [variantId, setVariantId] = useState(usable[0]?.id ?? "");
 
   return (
@@ -68,6 +70,7 @@ export default function ProductPurchaseLayout({
       <div className="flex min-w-0 flex-col gap-6">
         {gallery}
         {isGiftcard && <GiftCardOptionGrid variants={usable} value={variantId} onChange={setVariantId} />}
+        {isTopup && <TopupAmountGrid variants={usable} value={variantId} onChange={setVariantId} />}
         {description}
       </div>
 
@@ -76,9 +79,9 @@ export default function ProductPurchaseLayout({
           <ProductBuyBox
             variants={variants}
             customFields={customFields}
-            variantId={isGiftcard ? variantId : undefined}
-            onVariantChange={isGiftcard ? setVariantId : undefined}
-            hideOptionPicker={isGiftcard}
+            variantId={isGiftcard || isTopup ? variantId : undefined}
+            onVariantChange={isGiftcard || isTopup ? setVariantId : undefined}
+            hideOptionPicker={isGiftcard || (isTopup && usable.length > 1)}
           />
         </Reveal>
       </div>
