@@ -7,35 +7,31 @@ import { labelFor, ORDER_STATUSES } from "@/lib/enums";
 import { ORDER_STATUS_COLOR } from "@/lib/orderStatusColors";
 import type { OrderStatus } from "@/lib/enums";
 
-export default async function AccountPage() {
+export default async function OrdersPage() {
   const session = await getSession();
-  if (!session) redirect("/account/login?next=/account");
+  if (!session) redirect("/account/login?next=/orders");
 
   const orders = await prisma.order.findMany({
     where: { userId: session.userId },
     orderBy: { createdAt: "desc" },
-    take: 5,
     include: { items: true },
   });
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-white">My Account</h1>
+        <h1 className="text-2xl font-bold text-white">My Orders</h1>
         <p className="text-sm text-slate-500">{session.email}</p>
       </div>
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-200">Recent orders</h2>
-        {orders.length > 0 && (
-          <Link href="/orders" className="text-sm text-accent-soft hover:text-accent transition-colors">
-            View all →
-          </Link>
-        )}
-      </div>
-
       {orders.length === 0 ? (
-        <p className="text-slate-500">No orders yet.</p>
+        <div className="card p-8 text-center flex flex-col items-center gap-3">
+          <span className="text-4xl">🛒</span>
+          <p className="text-slate-400">You haven&apos;t placed any orders yet.</p>
+          <Link href="/" className="btn-primary mt-1">
+            Browse the store
+          </Link>
+        </div>
       ) : (
         <div className="card divide-y divide-border">
           {orders.map((o) => {
@@ -46,15 +42,16 @@ export default async function AccountPage() {
               <Link
                 key={o.id}
                 href={`/orders/${o.id}`}
-                className="flex justify-between items-center p-4 hover:bg-surface2 transition-colors gap-3"
+                className="flex justify-between items-center p-4 hover:bg-surface2 transition-colors gap-4"
               >
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium text-slate-200 font-mono">
                     #{o.id.slice(-8).toUpperCase()}
                   </div>
-                  <div className="text-xs text-slate-500 mt-0.5">
+                  <div className="text-xs text-slate-500 mt-0.5 truncate">
                     {formatDate(o.createdAt)} · {o.items.length} item{o.items.length === 1 ? "" : "s"}
                   </div>
+                  <div className="text-[10px] text-slate-600 mt-0.5 font-mono truncate">{o.id}</div>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   <span className="text-sm text-slate-200">{formatMoney(o.total, o.currency)}</span>
@@ -68,11 +65,9 @@ export default async function AccountPage() {
         </div>
       )}
 
-      {orders.length >= 5 && (
-        <Link href="/orders" className="text-sm text-slate-500 hover:text-slate-300 self-start transition-colors">
-          See all orders →
-        </Link>
-      )}
+      <Link href="/account" className="text-sm text-slate-500 hover:text-slate-300 self-start transition-colors">
+        ← Back to account
+      </Link>
     </div>
   );
 }

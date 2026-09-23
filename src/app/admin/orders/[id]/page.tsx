@@ -3,7 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { formatMoney, formatDate, roundMoney } from "@/lib/format";
 import { labelFor, ORDER_STATUSES, SALE_MODES, DELIVERY_METHODS, PAYMENT_METHOD_TYPES } from "@/lib/enums";
 import { readCustomFieldValues } from "@/lib/json";
-import { manualFulfillAction, refundOrderAction, cancelOrderAction, verifyPaymentAction } from "@/lib/actions/admin/orders";
+import { manualFulfillAction, refundOrderAction, cancelOrderAction, verifyPaymentAction, updateOrderStatusAction } from "@/lib/actions/admin/orders";
+import { ORDER_STATUS_COLOR } from "@/lib/orderStatusColors";
+import CopyButton from "@/components/storefront/CopyButton";
 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,16 +20,47 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
   });
   if (!order) notFound();
 
+  const statusColor = ORDER_STATUS_COLOR[order.status as keyof typeof ORDER_STATUS_COLOR]?.badgeClass ?? "bg-surface2 text-slate-300";
+
   return (
     <div className="flex flex-col gap-6 max-w-3xl">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Order #{order.id.slice(-8).toUpperCase()}</h1>
-          <p className="text-sm text-slate-500">
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs font-mono text-slate-400 break-all">{order.id}</span>
+            <CopyButton text={order.id} />
+          </div>
+          <p className="text-sm text-slate-500 mt-1">
             {order.user.email} · {formatDate(order.createdAt)} · {order.region.name}
           </p>
         </div>
-        <span className="badge bg-surface2 border border-border text-slate-300">{labelFor(ORDER_STATUSES, order.status)}</span>
+        <span className={`badge border shrink-0 ${statusColor}`}>{labelFor(ORDER_STATUSES, order.status)}</span>
+      </div>
+
+      <div className="card p-5 flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-slate-200">Status Management</h2>
+        <p className="text-xs text-slate-400">
+          Current status: <span className="font-semibold text-slate-200">{labelFor(ORDER_STATUSES, order.status)}</span>.
+          Admin can change the status directly (e.g., mark as Pending, Confirmed [Paid], Delivered [Fulfilled], etc.).
+        </p>
+        <form action={updateOrderStatusAction} className="flex flex-wrap items-center gap-3">
+          <input type="hidden" name="orderId" value={order.id} />
+          <select
+            name="status"
+            defaultValue={order.status}
+            className="input !w-auto bg-surface2 text-sm text-slate-200"
+          >
+            {ORDER_STATUSES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label} ({s.value})
+              </option>
+            ))}
+          </select>
+          <button type="submit" className="btn-primary !px-4">
+            Update Status
+          </button>
+        </form>
       </div>
 
       {(order.buyerName || order.buyerPhone || order.buyerCity || order.paymentProofUrl) && (

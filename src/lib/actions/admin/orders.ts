@@ -146,3 +146,46 @@ export async function cancelOrderAction(formData: FormData) {
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/admin/orders");
 }
+
+/// General-purpose order status override — lets admins explicitly set any
+/// valid order status (e.g. PENDING → PAID to mark as confirmed, PAID →
+/// FULFILLED to mark as delivered, etc.) without going through the
+/// specialised verify/refund/cancel flows. All changes are audit-logged.
+export async function updateOrderStatusAction(formData: FormData) {
+  const session = await requireAdmin(["SUPER_ADMIN", "FINANCE", "SUPPORT_AGENT"]);
+  const orderId = String(formData.get("orderId") ?? "");
+  const newStatus = String(formData.get("status") ?? "");
+
+  const VALID_STATUSES = [
+    "PENDING",
+    "AWAITING_VERIFICATION",
+    "PAID",
+    "FULFILLED",
+    "PARTIALLY_FULFILLED",
+    "CANCELLED",
+    "REFUNDED",
+    "DISPUTED",
+  ];
+  if (!orderId) throw new Error("Missing order id.");
+  if (!VALID_STATUSES.includes(newStatus)) throw new Error(`Invalid status: ${newStatus}`);
+
+  const before = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!before) throw new Error("Order not found.");
+  if (before.status === newStatus) return; // no-op
+
+  const updated = await prisma.order.update({
+    where: { id: orderId },
+    data: { status: newStatus },
+  });
+  await logAudit(
+    session.userId,
+    "order.status_update",
+    `Order:${orderId}`,
+    { status: before.status },
+    { status: updated.status },
+  );
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/orders");
+  revalidatePath(`/orders/${orderId}`);
+}

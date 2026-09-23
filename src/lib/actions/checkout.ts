@@ -3,8 +3,9 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCart, clearCart } from "@/lib/cart";
-import { getSession } from "@/lib/session";
+import { getSession, createSession } from "@/lib/session";
 import { getSelectedRegion } from "@/lib/region";
+import type { UserRole } from "@/lib/enums";
 import { toJson } from "@/lib/json";
 import { roundMoney } from "@/lib/format";
 import { getActiveDiscounts, buildCollectionIdsMap, pickBestDiscount } from "@/lib/discounts";
@@ -205,6 +206,10 @@ export async function placeOrderAction(_prev: CheckoutState, formData: FormData)
   });
 
   await logCustomerEvent({ userId: user.id, email, ip, type: "order_placed", detail: `Order:${order.id}` });
+
+  if (!session) {
+    await createSession({ userId: user.id, email: user.email, role: user.role as UserRole });
+  }
 
   await clearCart();
   redirect(`/orders/${order.id}`);
